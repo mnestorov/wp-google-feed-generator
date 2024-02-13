@@ -1,6 +1,6 @@
 <?php
 /**
- * Plugin Name: Google Feed Generator for WooCommerce
+ * Plugin Name: SM - Google Feed Generator for WooCommerce
  * Plugin URI:  https://smartystudio.net
  * Description: Generates google product and product review feeds for Google Merchant Center.
  * Version:     1.0.0
@@ -74,21 +74,14 @@ if (!function_exists('smarty_generate_google_feed')) {
      */
     function smarty_generate_google_feed() {
         header('Content-Type: application/xml; charset=utf-8');
-        $feed_path = WP_CONTENT_DIR . '/uploads/smarty_google_feed.xml';
-
-        if (file_exists($feed_path)) {
-            echo file_get_contents($feed_path);
-            exit;
-        }
-
-        // Check if a cached version exists
+    
+        // Check for a cached version first
         $cached_feed = get_transient('smarty_google_feed');
         if ($cached_feed !== false) {
-            header('Content-Type: application/xml; charset=utf-8');
             echo $cached_feed;
             exit;
         }
-
+    
         if (class_exists('WooCommerce')) {
             $args = array(
                 'status' => 'publish',
@@ -96,73 +89,53 @@ if (!function_exists('smarty_generate_google_feed')) {
                 'orderby' => 'date',
                 'order' => 'DESC',
             );
-
+    
             $products = wc_get_products($args);
-            $xml = new SimpleXMLElement('<rss version="2.0"/>');
-            $xml->addAttribute('xmlns:g', 'http://base.google.com/ns/1.0');
-            $channel = $xml->addChild('channel');
-
-            // Dynamically set store information
-            $channel->addChild('title', get_bloginfo('name'));
-            $channel->addChild('link', get_bloginfo('url'));
-            $channel->addChild('description', get_bloginfo('description'));
-
+    
+            // Initialize the XML structure with <feed> as the root element
+            $xml = new SimpleXMLElement('<feed xmlns:g="http://base.google.com/ns/1.0"/>');
+    
             foreach ($products as $product) {
-                $item = $channel->addChild('item');
-                $item->addChild('g:id', $product->get_id(), 'http://base.google.com/ns/1.0');
-                $item->addChild('g:title', htmlspecialchars($product->get_name()), 'http://base.google.com/ns/1.0');
-
-                // Description: Choose short or long description based on your needs
-                $description = !empty($product->get_short_description()) ? $product->get_short_description() : $product->get_description();
-                $item->addChild('g:description', htmlspecialchars(strip_tags($description)), 'http://base.google.com/ns/1.0');
-
-                // Link
-                $item->addChild('g:link', get_permalink($product->get_id()), 'http://base.google.com/ns/1.0');
-                
-                // Main Image
-                $item->addChild('g:image_link', wp_get_attachment_url($product->get_image_id()), 'http://base.google.com/ns/1.0');
-
-                // Additional Images (Gallery)
+                $item = $xml->addChild('item'); // Directly add items to the feed
+    
+                // Adding the g: namespace for elements related to Google Merchant
+                $item->addChild('title', htmlspecialchars($product->get_name()), 'http://base.google.com/ns/1.0');
+                $item->addChild('link', get_permalink($product->get_id()), 'http://base.google.com/ns/1.0');
+                $item->addChild('description', htmlspecialchars(strip_tags(!empty($product->get_short_description()) ? $product->get_short_description() : $product->get_description())), 'http://base.google.com/ns/1.0');
+                $item->addChild('image_link', wp_get_attachment_url($product->get_image_id()), 'http://base.google.com/ns/1.0');
+    
+                // Additional Images
                 $gallery_ids = $product->get_gallery_image_ids();
                 foreach ($gallery_ids as $gallery_id) {
-                    $item->addChild('g:additional_image_link', wp_get_attachment_url($gallery_id), 'http://base.google.com/ns/1.0');
+                    $item->addChild('additional_image_link', wp_get_attachment_url($gallery_id), 'http://base.google.com/ns/1.0');
                 }
-
-                // Price and Sale Price
-                if ($product->is_on_sale()) {
-                    $item->addChild('g:price', $product->get_regular_price() . ' ' . get_woocommerce_currency(), 'http://base.google.com/ns/1.0');
-                    $item->addChild('g:sale_price', $product->get_sale_price() . ' ' . get_woocommerce_currency(), 'http://base.google.com/ns/1.0');
-                } else {
-                    $item->addChild('g:price', $product->get_price() . ' ' . get_woocommerce_currency(), 'http://base.google.com/ns/1.0');
+    
+                // Price
+                $item->addChild('price', htmlspecialchars($product->get_price() . ' ' . get_woocommerce_currency()), 'http://base.google.com/ns/1.0');
+    
+                // Sale Price (if applicable)
+                if ($product->is_on_sale() && !empty($product->get_sale_price())) {
+                    $item->addChild('sale_price', htmlspecialchars($product->get_sale_price() . ' ' . get_woocommerce_currency()), 'http://base.google.com/ns/1.0');
                 }
-
+    
                 // Product Type (Category)
                 $categories = wp_get_post_terms($product->get_id(), 'product_cat');
                 if (!empty($categories) && !is_wp_error($categories)) {
-                    $category_names = array_map(function($term) {
-                        return $term->name;
-                    }, $categories);
-                    $item->addChild('g:product_type', htmlspecialchars(join(' > ', $category_names)), 'http://base.google.com/ns/1.0');
+                    $category_names = array_map(function($term) { return $term->name; }, $categories);
+                    $item->addChild('product_type', htmlspecialchars(join(' > ', $category_names)), 'http://base.google.com/ns/1.0');
                 }
-
+    
                 // SKU
-                $item->addChild('g:sku', $product->get_sku(), 'http://base.google.com/ns/1.0');
-
-                // After generating the $xml object
-                $feed_content = $xml->asXML();
-
-                // Cache the feed content for a certain period (e.g., 12 hours)
-                set_transient('smarty_google_feed', $feed_content, 12 * HOUR_IN_SECONDS);
-
-                header('Content-Type: application/xml; charset=utf-8');
-                echo $feed_content;
-                exit;
+                $item->addChild('sku', $product->get_sku(), 'http://base.google.com/ns/1.0');
             }
-
-            echo $xml->asXML();
-            exit; // Ensure no further output is sent
+    
+            // Save the feed content and set transient for caching
+            $feed_content = $xml->asXML();
+            set_transient('smarty_google_feed', $feed_content, 12 * HOUR_IN_SECONDS);
+    
+            echo $feed_content;
+            exit;
         } else {
-            error_log('WooCommerce is not active');
             echo '<error>WooCommerce is not active.</error>';
             exit;
         }
@@ -180,6 +153,7 @@ if (!function_exists('smarty_generate_google_reviews_feed')) {
             'post_type' => 'product',
             'numberposts' => -1, // Adjust based on performance
         );
+
         $products = get_posts($args);
 
         $xml = new SimpleXMLElement('<feed xmlns:g="http://base.google.com/ns/1.0"/>');
@@ -225,7 +199,7 @@ if (!function_exists('smarty_invalidate_feed_cache')) {
             // Invalidate cache
             delete_transient('smarty_google_feed');
             // Optionally, regenerate the feed file
-            // smarty_regenerate_feed();
+            smarty_regenerate_feed();
         }
     }
     add_action('woocommerce_new_product', 'smarty_invalidate_feed_cache');
@@ -238,7 +212,7 @@ if (!function_exists('smarty_invalidate_feed_cache_on_delete')) {
             // Invalidate cache
             delete_transient('smarty_google_feed');
             // Optionally, regenerate the feed file
-            // smarty_regenerate_feed();
+            smarty_regenerate_feed();
         }
     }
     add_action('before_delete_post', 'smarty_invalidate_feed_cache_on_delete');
@@ -257,13 +231,58 @@ if (!function_exists('smarty_invalidate_review_feed_cache')) {
             // Invalidate cache
             delete_transient('smarty_google_reviews_feed');
             // Optionally, regenerate the feed file
-            // smarty_regenerate_google_reviews_feed();
+            smarty_regenerate_google_reviews_feed();
         }
     }
     add_action('comment_post', 'smarty_invalidate_review_feed_cache', 10, 2);
     add_action('edit_comment', 'smarty_invalidate_review_feed_cache');
     add_action('deleted_comment', 'smarty_invalidate_review_feed_cache');
     add_action('wp_set_comment_status', 'smarty_invalidate_review_feed_cache');
+}
+
+if (!function_exists('smarty_regenerate_product_feed')) {
+    /**
+     * Regenerates the feed and saves it to a transient or a file.
+     */
+	function smarty_regenerate_product_feed() {
+		$products = wc_get_products(array(
+			'status' => 'publish',
+			'limit' => -1,
+			'orderby' => 'date',
+			'order' => 'DESC',
+		));
+
+		$xml = new SimpleXMLElement('<feed xmlns:g="http://base.google.com/ns/1.0"/>');
+		// Add feed details and loop through products to add them to the feed...
+
+		foreach ($products as $product) {
+			$item = $xml->addChild('item');
+			// Populate $item with product details...
+		}
+
+		$feed_content = $xml->asXML();
+
+		// Save the generated feed to a transient or a file
+		set_transient('smarty_google_product_feed', $feed_content, 12 * HOUR_IN_SECONDS);
+		// or
+		file_put_contents(WP_CONTENT_DIR . '/uploads/smarty_google_product_feed.xml', $feed_content);
+	}
+}
+
+// Call this function to regenerate the feed
+//smarty_regenerate_product_feed();
+
+if (!function_exists('smarty_handle_product_change')) {
+    /**
+     * Hook into product changes.
+     */
+    function smarty_handle_product_change($post_id) {
+        if (get_post_type($post_id) == 'product') {
+            smarty_regenerate_product_feed(); // Regenerate the feed
+	    }
+    }
+	add_action('save_post_product', 'smarty_handle_product_change');
+	add_action('deleted_post', 'smarty_handle_product_change');
 }
 
 if (!function_exists('smarty_feed_generator_activate')) {
