@@ -215,6 +215,57 @@ if (!function_exists('get_the_product_sku')) {
     }
 }
 
+if (!function_exists('smarty_invalidate_feed_cache')) {
+    /**
+     * Invalidate cache or regenerate feed when a product is created, updated, or deleted.
+     */
+    function smarty_invalidate_feed_cache($product_id) {
+        // Check if the post is a 'product'
+        if (get_post_type($product_id) === 'product') {
+            // Invalidate cache
+            delete_transient('smarty_google_feed');
+            // Optionally, regenerate the feed file
+            // smarty_regenerate_feed();
+        }
+    }
+    add_action('woocommerce_new_product', 'smarty_invalidate_feed_cache');
+    add_action('woocommerce_update_product', 'smarty_invalidate_feed_cache');
+}
+
+if (!function_exists('smarty_invalidate_feed_cache_on_delete')) {
+    function smarty_invalidate_feed_cache_on_delete($post_id) {
+        if (get_post_type($post_id) === 'product') {
+            // Invalidate cache
+            delete_transient('smarty_google_feed');
+            // Optionally, regenerate the feed file
+            // smarty_regenerate_feed();
+        }
+    }
+    add_action('before_delete_post', 'smarty_invalidate_feed_cache_on_delete');
+}
+
+if (!function_exists('smarty_invalidate_review_feed_cache')) {
+    /**
+     * Invalidate cache or regenerate review feed when reviews are added, updated, or deleted.
+     */
+    function smarty_invalidate_review_feed_cache($comment_id, $comment_approved = '') {
+        $comment = get_comment($comment_id);
+        $post_id = $comment->comment_post_ID;
+        
+        // Check if the comment is for a 'product' and approved
+        if (get_post_type($post_id) === 'product' && ($comment_approved == 1 || $comment_approved == 'approve')) {
+            // Invalidate cache
+            delete_transient('smarty_google_reviews_feed');
+            // Optionally, regenerate the feed file
+            // smarty_regenerate_google_reviews_feed();
+        }
+    }
+    add_action('comment_post', 'smarty_invalidate_review_feed_cache', 10, 2);
+    add_action('edit_comment', 'smarty_invalidate_review_feed_cache');
+    add_action('deleted_comment', 'smarty_invalidate_review_feed_cache');
+    add_action('wp_set_comment_status', 'smarty_invalidate_review_feed_cache');
+}
+
 if (!function_exists('smarty_feed_generator_activate')) {
     /**
      * Activation hook to flush rewrite rules and schedule feed regeneration on plugin activation.
