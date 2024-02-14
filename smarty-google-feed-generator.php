@@ -111,8 +111,6 @@ if (!function_exists('smarty_generate_google_feed')) {
                             $item->addChild('description', 'No description available', $gNamespace);
                         }
 
-                        $item->addChild('image_link', wp_get_attachment_url($product->get_image_id()), $gNamespace);
-
                         // Variation specific image
                         $image_id = $variation->get_image_id() ? $variation->get_image_id() : $product->get_image_id();
                         $item->addChild('image_link', wp_get_attachment_url($image_id), $gNamespace);
@@ -169,6 +167,7 @@ if (!function_exists('smarty_generate_google_feed')) {
 
                     // Additional Images
                     $gallery_ids = $product->get_gallery_image_ids();
+
                     foreach ($gallery_ids as $gallery_id) {
                         $item->addChild('additional_image_link', wp_get_attachment_url($gallery_id), $gNamespace);
                     }
@@ -183,6 +182,7 @@ if (!function_exists('smarty_generate_google_feed')) {
         
                     // Product Type (Category)
                     $categories = wp_get_post_terms($product->get_id(), 'product_cat');
+
                     if (!empty($categories) && !is_wp_error($categories)) {
                         $category_names = array_map(function($term) { return $term->name; }, $categories);
                         $item->addChild('product_type', htmlspecialchars(join(' > ', $category_names)), $gNamespace);
@@ -348,9 +348,12 @@ if (!function_exists('smarty_regenerate_feed')) {
 
                     $item->addChild('image_link', wp_get_attachment_url($product->get_image_id()), $gNamespace);
 
-                    // Variation specific image
+                    // Variation specific image, if different from the main product image
                     $image_id = $variation->get_image_id() ? $variation->get_image_id() : $product->get_image_id();
-                    $item->addChild('image_link', wp_get_attachment_url($image_id), $gNamespace);
+
+                    if ($variationImageURL !== $mainImageURL) {
+                        $item->addChild('image_link', wp_get_attachment_url($image_id), $gNamespace);
+                    }
 
                     // Additional Images from the parent product
                     $gallery_ids = $product->get_gallery_image_ids();
@@ -399,7 +402,7 @@ if (!function_exists('smarty_regenerate_feed')) {
                     $item->addChild('description', 'No description available', $gNamespace);
                 }
                 
-                // Main Image
+                // Main product image
                 $item->addChild('image_link', wp_get_attachment_url($product->get_image_id()), $gNamespace);
 
                 // Additional Images
@@ -485,4 +488,3 @@ if (!function_exists('smarty_feed_generator_deactivate')) {
     }
     register_deactivation_hook(__FILE__, 'smarty_feed_generator_deactivate');
 }
-
