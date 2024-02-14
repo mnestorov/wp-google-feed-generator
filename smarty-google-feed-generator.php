@@ -123,8 +123,7 @@ if (!function_exists('smarty_generate_google_feed')) {
                         } else {
                             $item->addChild('description', 'No description available', $gNamespace);
                         }
-                        
-                        // Main Image
+
                         $item->addChild('image_link', wp_get_attachment_url($product->get_image_id()), $gNamespace);
 
                         // Variation specific image
