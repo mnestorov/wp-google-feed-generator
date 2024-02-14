@@ -474,7 +474,8 @@ if (!function_exists('smarty_feed_generator_activate')) {
 
 if (!function_exists('smarty_feed_generator_deactivate')) {
     /**
-     * Deactivation hook to flush rewrite rules and clear scheduled feed regeneration on plugin deactivation.
+     * Deactivation hook to flush rewrite rules, clear scheduled feed regeneration,
+     * and remove the generated .xml file on plugin deactivation.
      */
     function smarty_feed_generator_deactivate() {
         // Flush rewrite rules
@@ -484,6 +485,14 @@ if (!function_exists('smarty_feed_generator_deactivate')) {
         $timestamp = wp_next_scheduled('smarty_generate_google_feed_event');
         if ($timestamp) {
             wp_unschedule_event($timestamp, 'smarty_generate_google_feed_event');
+        }
+
+        // Path to the generated XML file
+        $feed_file_path = WP_CONTENT_DIR . '/uploads/smarty_google_feed.xml';
+
+        // Check if the file exists and delete it
+        if (file_exists($feed_file_path)) {
+            unlink($feed_file_path);
         }
     }
     register_deactivation_hook(__FILE__, 'smarty_feed_generator_deactivate');
