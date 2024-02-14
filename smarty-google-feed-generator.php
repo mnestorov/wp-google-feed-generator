@@ -88,45 +88,120 @@ if (!function_exists('smarty_generate_google_feed')) {
                 'limit' => -1, // Consider performance and execution time limits
                 'orderby' => 'date',
                 'order' => 'DESC',
+                'type' => ['simple', 'variable'], // Include both simple and variable products
             );
     
             $products = wc_get_products($args);
     
             // Initialize the XML structure with <feed> as the root element
             $xml = new SimpleXMLElement('<feed xmlns:g="http://base.google.com/ns/1.0"/>');
-    
+
             foreach ($products as $product) {
-                $item = $xml->addChild('item'); // Directly add items to the feed
+                if ($product->is_type('variable')) {
+                    foreach ($product->get_children() as $child_id) {
+                        $variation = wc_get_product($child_id);
+                        $item = $xml->addChild('item');
+                        $gNamespace = 'http://base.google.com/ns/1.0';
     
-                // Adding the g: namespace for elements related to Google Merchant
-                $item->addChild('title', htmlspecialchars($product->get_name()), 'http://base.google.com/ns/1.0');
-                $item->addChild('link', get_permalink($product->get_id()), 'http://base.google.com/ns/1.0');
-                $item->addChild('description', htmlspecialchars(strip_tags(!empty($product->get_short_description()) ? $product->get_short_description() : $product->get_description())), 'http://base.google.com/ns/1.0');
-                $item->addChild('image_link', wp_get_attachment_url($product->get_image_id()), 'http://base.google.com/ns/1.0');
+                        // Include both product ID and SKU for identification
+                        $item->addChild('g:id', $variation->get_id(), $gNamespace);
+                        $item->addChild('g:sku', $variation->get_sku(), $gNamespace);
+                        $item->addChild('title', htmlspecialchars($product->get_name()), $gNamespace);
+                        $item->addChild('link', get_permalink($product->get_id()), $gNamespace);
+                        
+                        // Handle description
+                        $description = $product->get_description();
+                        
+                        if (empty($description)) {
+                            // Fallback to short description if main description is empty
+                            $description = $product->get_short_description();
+                        }
+
+                        if (!empty($description)) {
+                            // Ensure that HTML tags are removed and properly encoded
+                            $item->addChild('description', htmlspecialchars(strip_tags($description)), $gNamespace);
+                        } else {
+                            $item->addChild('description', 'No description available', $gNamespace);
+                        }
+                        
+                        // Main Image
+                        $item->addChild('image_link', wp_get_attachment_url($product->get_image_id()), $gNamespace);
+
+                        // Variation specific image
+                        $image_id = $variation->get_image_id() ? $variation->get_image_id() : $product->get_image_id();
+                        $item->addChild('image_link', wp_get_attachment_url($image_id), $gNamespace);
+
+                        // Additional Images from the parent product
+                        $gallery_ids = $product->get_gallery_image_ids();
+                        
+                        foreach ($gallery_ids as $gallery_id) {
+                            $item->addChild('additional_image_link', wp_get_attachment_url($gallery_id), $gNamespace);
+                        }
     
-                // Additional Images
-                $gallery_ids = $product->get_gallery_image_ids();
-                foreach ($gallery_ids as $gallery_id) {
-                    $item->addChild('additional_image_link', wp_get_attachment_url($gallery_id), 'http://base.google.com/ns/1.0');
+                        // Price
+                        $item->addChild('price', htmlspecialchars($variation->get_regular_price() . ' ' . get_woocommerce_currency()), $gNamespace);
+                        
+                        // Handling sale price for variations
+                        if ($variation->is_on_sale()) {
+                            $item->addChild('sale_price', htmlspecialchars($variation->get_sale_price() . ' ' . get_woocommerce_currency()), $gNamespace);
+                        }
+
+                        // Category handling remains similar
+                        $categories = wp_get_post_terms($product->get_id(), 'product_cat');
+                        
+                        if (!empty($categories) && !is_wp_error($categories)) {
+                            $category_names = array_map(function($term) { return $term->name; }, $categories);
+                            $item->addChild('product_type', htmlspecialchars(join(' > ', $category_names)), $gNamespace);
+                        }
+                    }
+                } else {
+                    // Handle simple products
+                    $item = $xml->addChild('item');
+                    $gNamespace = 'http://base.google.com/ns/1.0';
+                    $item->addChild('g:id', $product->get_id(), $gNamespace);
+                    $item->addChild('g:sku', $product->get_sku(), $gNamespace);
+                    $item->addChild('title', htmlspecialchars($product->get_name()), $gNamespace);
+                    $item->addChild('link', get_permalink($product->get_id()), $gNamespace);
+
+                    // Handle description
+                    $description = $product->get_description();
+                    
+                    if (empty($description)) {
+                        // Fallback to short description if main description is empty
+                        $description = $product->get_short_description();
+                    }
+
+                    if (!empty($description)) {
+                        // Ensure that HTML tags are removed and properly encoded
+                        $item->addChild('description', htmlspecialchars(strip_tags($description)), $gNamespace);
+                    } else {
+                        $item->addChild('description', 'No description available', $gNamespace);
+                    }
+                    
+                    // Main Image
+                    $item->addChild('image_link', wp_get_attachment_url($product->get_image_id()), $gNamespace);
+
+                    // Additional Images
+                    $gallery_ids = $product->get_gallery_image_ids();
+                    foreach ($gallery_ids as $gallery_id) {
+                        $item->addChild('additional_image_link', wp_get_attachment_url($gallery_id), $gNamespace);
+                    }
+        
+                    // Price
+                    $item->addChild('price', htmlspecialchars($product->get_price() . ' ' . get_woocommerce_currency()), $gNamespace);
+        
+                    // Sale Price (if applicable)
+                    if ($product->is_on_sale() && !empty($product->get_sale_price())) {
+                        $item->addChild('sale_price', htmlspecialchars($product->get_sale_price() . ' ' . get_woocommerce_currency()), $gNamespace);
+                    }
+        
+                    // Product Type (Category)
+                    $categories = wp_get_post_terms($product->get_id(), 'product_cat');
+                    if (!empty($categories) && !is_wp_error($categories)) {
+                        $category_names = array_map(function($term) { return $term->name; }, $categories);
+                        $item->addChild('product_type', htmlspecialchars(join(' > ', $category_names)), $gNamespace);
+                    }
                 }
-    
-                // Price
-                $item->addChild('price', htmlspecialchars($product->get_price() . ' ' . get_woocommerce_currency()), 'http://base.google.com/ns/1.0');
-    
-                // Sale Price (if applicable)
-                if ($product->is_on_sale() && !empty($product->get_sale_price())) {
-                    $item->addChild('sale_price', htmlspecialchars($product->get_sale_price() . ' ' . get_woocommerce_currency()), 'http://base.google.com/ns/1.0');
-                }
-    
-                // Product Type (Category)
-                $categories = wp_get_post_terms($product->get_id(), 'product_cat');
-                if (!empty($categories) && !is_wp_error($categories)) {
-                    $category_names = array_map(function($term) { return $term->name; }, $categories);
-                    $item->addChild('product_type', htmlspecialchars(join(' > ', $category_names)), 'http://base.google.com/ns/1.0');
-                }
-    
-                // SKU
-                $item->addChild('sku', $product->get_sku(), 'http://base.google.com/ns/1.0');
             }
     
             // Save the feed content and set transient for caching
@@ -160,15 +235,17 @@ if (!function_exists('smarty_generate_google_reviews_feed')) {
 
         foreach ($products as $product) {
             $reviews = get_comments(array('post_id' => $product->ID));
+            $gNamespace = 'http://base.google.com/ns/1.0';
+
             foreach ($reviews as $review) {
                 if ($review->comment_approved == '1') { // Only show approved reviews
                     $entry = $xml->addChild('entry');
-                    $entry->addChild('g:id', htmlspecialchars(get_the_product_sku($product->ID)), 'http://base.google.com/ns/1.0');
-                    $entry->addChild('g:title', htmlspecialchars($product->post_title), 'http://base.google.com/ns/1.0');
-                    $entry->addChild('g:content', htmlspecialchars($review->comment_content), 'http://base.google.com/ns/1.0');
-                    $entry->addChild('g:reviewer', htmlspecialchars($review->comment_author), 'http://base.google.com/ns/1.0');
-                    $entry->addChild('g:review_date', date('Y-m-d', strtotime($review->comment_date)), 'http://base.google.com/ns/1.0');
-                    $entry->addChild('g:rating', get_comment_meta($review->comment_ID, 'rating', true), 'http://base.google.com/ns/1.0');
+                    $entry->addChild('g:id', htmlspecialchars(get_the_product_sku($product->ID)), $gNamespace);
+                    $entry->addChild('g:title', htmlspecialchars($product->post_title), $gNamespace);
+                    $entry->addChild('g:content', htmlspecialchars($review->comment_content), $gNamespace);
+                    $entry->addChild('g:reviewer', htmlspecialchars($review->comment_author), $gNamespace);
+                    $entry->addChild('g:review_date', date('Y-m-d', strtotime($review->comment_date)), $gNamespace);
+                    $entry->addChild('g:rating', get_comment_meta($review->comment_ID, 'rating', true), $gNamespace);
                     // Add more fields as required by Google
                 }
             }
