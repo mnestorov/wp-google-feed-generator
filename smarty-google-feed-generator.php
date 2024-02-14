@@ -55,19 +55,6 @@ if (!function_exists('smarty_feed_generator_template_redirect')) {
     add_action('template_redirect', 'smarty_feed_generator_template_redirect');
 }
 
-if (!function_exists('smarty_regenerate_feed')) {
-    function smarty_regenerate_feed() {
-        // Feed generation logic, ending with saving the feed to a file or option
-        $xml = new SimpleXMLElement('<rss version="2.0"/>');
-        
-        // Add products or reviews to $xml...
-
-        $feed_content = $xml->asXML();
-        // Example: Saving the feed to a file
-        file_put_contents(WP_CONTENT_DIR . '/uploads/smarty_google_feed.xml', $feed_content);
-    }
-}
-
 if (!function_exists('smarty_generate_google_feed')) {
     /**
      * Generates the custom Google product feed.
@@ -316,11 +303,11 @@ if (!function_exists('smarty_invalidate_review_feed_cache')) {
     add_action('wp_set_comment_status', 'smarty_invalidate_review_feed_cache');
 }
 
-if (!function_exists('smarty_regenerate_product_feed')) {
+if (!function_exists('smarty_regenerate_feed')) {
     /**
      * Regenerates the feed and saves it to a transient or a file.
      */
-	function smarty_regenerate_product_feed() {
+	function smarty_regenerate_feed() {
 		$products = wc_get_products(array(
 			'status' => 'publish',
 			'limit' => -1,
@@ -332,21 +319,123 @@ if (!function_exists('smarty_regenerate_product_feed')) {
 		// Add feed details and loop through products to add them to the feed...
 
 		foreach ($products as $product) {
-			$item = $xml->addChild('item');
-			// Populate $item with product details...
-		}
+            if ($product->is_type('variable')) {
+                foreach ($product->get_children() as $child_id) {
+                    $variation = wc_get_product($child_id);
+                    $item = $xml->addChild('item');
+                    $gNamespace = 'http://base.google.com/ns/1.0';
+
+                    // Include both product ID and SKU for identification
+                    $item->addChild('g:id', $variation->get_id(), $gNamespace);
+                    $item->addChild('g:sku', $variation->get_sku(), $gNamespace);
+                    $item->addChild('title', htmlspecialchars($product->get_name()), $gNamespace);
+                    $item->addChild('link', get_permalink($product->get_id()), $gNamespace);
+                    
+                    // Handle description
+                    $description = $product->get_description();
+                    
+                    if (empty($description)) {
+                        // Fallback to short description if main description is empty
+                        $description = $product->get_short_description();
+                    }
+
+                    if (!empty($description)) {
+                        // Ensure that HTML tags are removed and properly encoded
+                        $item->addChild('description', htmlspecialchars(strip_tags($description)), $gNamespace);
+                    } else {
+                        $item->addChild('description', 'No description available', $gNamespace);
+                    }
+
+                    $item->addChild('image_link', wp_get_attachment_url($product->get_image_id()), $gNamespace);
+
+                    // Variation specific image
+                    $image_id = $variation->get_image_id() ? $variation->get_image_id() : $product->get_image_id();
+                    $item->addChild('image_link', wp_get_attachment_url($image_id), $gNamespace);
+
+                    // Additional Images from the parent product
+                    $gallery_ids = $product->get_gallery_image_ids();
+                    
+                    foreach ($gallery_ids as $gallery_id) {
+                        $item->addChild('additional_image_link', wp_get_attachment_url($gallery_id), $gNamespace);
+                    }
+
+                    // Price
+                    $item->addChild('price', htmlspecialchars($variation->get_regular_price() . ' ' . get_woocommerce_currency()), $gNamespace);
+                    
+                    // Handling sale price for variations
+                    if ($variation->is_on_sale()) {
+                        $item->addChild('sale_price', htmlspecialchars($variation->get_sale_price() . ' ' . get_woocommerce_currency()), $gNamespace);
+                    }
+
+                    // Category handling remains similar
+                    $categories = wp_get_post_terms($product->get_id(), 'product_cat');
+                    
+                    if (!empty($categories) && !is_wp_error($categories)) {
+                        $category_names = array_map(function($term) { return $term->name; }, $categories);
+                        $item->addChild('product_type', htmlspecialchars(join(' > ', $category_names)), $gNamespace);
+                    }
+                }
+            } else {
+                // Handle simple products
+                $item = $xml->addChild('item');
+                $gNamespace = 'http://base.google.com/ns/1.0';
+                $item->addChild('g:id', $product->get_id(), $gNamespace);
+                $item->addChild('g:sku', $product->get_sku(), $gNamespace);
+                $item->addChild('title', htmlspecialchars($product->get_name()), $gNamespace);
+                $item->addChild('link', get_permalink($product->get_id()), $gNamespace);
+
+                // Handle description
+                $description = $product->get_description();
+                
+                if (empty($description)) {
+                    // Fallback to short description if main description is empty
+                    $description = $product->get_short_description();
+                }
+
+                if (!empty($description)) {
+                    // Ensure that HTML tags are removed and properly encoded
+                    $item->addChild('description', htmlspecialchars(strip_tags($description)), $gNamespace);
+                } else {
+                    $item->addChild('description', 'No description available', $gNamespace);
+                }
+                
+                // Main Image
+                $item->addChild('image_link', wp_get_attachment_url($product->get_image_id()), $gNamespace);
+
+                // Additional Images
+                $gallery_ids = $product->get_gallery_image_ids();
+                foreach ($gallery_ids as $gallery_id) {
+                    $item->addChild('additional_image_link', wp_get_attachment_url($gallery_id), $gNamespace);
+                }
+    
+                // Price
+                $item->addChild('price', htmlspecialchars($product->get_price() . ' ' . get_woocommerce_currency()), $gNamespace);
+    
+                // Sale Price (if applicable)
+                if ($product->is_on_sale() && !empty($product->get_sale_price())) {
+                    $item->addChild('sale_price', htmlspecialchars($product->get_sale_price() . ' ' . get_woocommerce_currency()), $gNamespace);
+                }
+    
+                // Product Type (Category)
+                $categories = wp_get_post_terms($product->get_id(), 'product_cat');
+                if (!empty($categories) && !is_wp_error($categories)) {
+                    $category_names = array_map(function($term) { return $term->name; }, $categories);
+                    $item->addChild('product_type', htmlspecialchars(join(' > ', $category_names)), $gNamespace);
+                }
+            }
+        }
 
 		$feed_content = $xml->asXML();
 
 		// Save the generated feed to a transient or a file
-		set_transient('smarty_google_product_feed', $feed_content, 12 * HOUR_IN_SECONDS);
+		set_transient('smarty_google_feed', $feed_content, 12 * HOUR_IN_SECONDS);
 		// or
-		file_put_contents(WP_CONTENT_DIR . '/uploads/smarty_google_product_feed.xml', $feed_content);
+		file_put_contents(WP_CONTENT_DIR . '/uploads/smarty_google_feed.xml', $feed_content);
 	}
 }
 
 // Call this function to regenerate the feed
-//smarty_regenerate_product_feed();
+//smarty_regenerate_feed();
 
 if (!function_exists('smarty_handle_product_change')) {
     /**
@@ -354,7 +443,7 @@ if (!function_exists('smarty_handle_product_change')) {
      */
     function smarty_handle_product_change($post_id) {
         if (get_post_type($post_id) == 'product') {
-            smarty_regenerate_product_feed(); // Regenerate the feed
+            smarty_regenerate_feed(); // Regenerate the feed
 	    }
     }
 	add_action('save_post_product', 'smarty_handle_product_change');
