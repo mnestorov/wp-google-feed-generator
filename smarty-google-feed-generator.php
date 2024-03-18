@@ -22,6 +22,7 @@ if (!function_exists('smarty_feed_generator_add_rewrite_rules')) {
     function smarty_feed_generator_add_rewrite_rules() {
         add_rewrite_rule('^smarty-google-feed/?', 'index.php?smarty_google_feed=1', 'top');
         add_rewrite_rule('^smarty-google-reviews-feed/?', 'index.php?smarty_google_reviews_feed=1', 'top');
+        add_rewrite_rule('^smarty-csv-export/?', 'index.php?smarty_csv_export=1', 'top');
     }
     add_action('init', 'smarty_feed_generator_add_rewrite_rules');
 }
@@ -33,6 +34,7 @@ if (!function_exists('smarty_feed_generator_query_vars')) {
     function smarty_feed_generator_query_vars($vars) {
         $vars[] = 'smarty_google_feed';
         $vars[] = 'smarty_google_reviews_feed';
+        $vars[] = 'smarty_csv_export';
         return $vars;
     }
     add_filter('query_vars', 'smarty_feed_generator_query_vars');
@@ -47,8 +49,14 @@ if (!function_exists('smarty_feed_generator_template_redirect')) {
             smarty_generate_google_feed();
             exit;
         }
+
         if (get_query_var('smarty_google_reviews_feed')) {
             smarty_generate_google_reviews_feed();
+            exit;
+        }
+
+        if (get_query_var('smarty_csv_export')) {
+            smarty_generate_csv_export();
             exit;
         }
     }
@@ -242,6 +250,139 @@ if (!function_exists('smarty_generate_google_reviews_feed')) {
     }
 }
 
+function smarty_generate_csv_export() {
+    header('Content-Type: text/csv; charset=utf-8');
+    header('Content-Disposition: attachment; filename="woocommerce-products.csv"');
+
+    // Open output stream directly for download
+    $handle = fopen('php://output', 'w');
+    if ($handle === false) {
+        // Handle error appropriately
+        wp_die('Failed to open output stream for CSV export');
+    }
+
+    // Define the header row of the CSV
+    $headers = array(
+        'Product ID', 
+        'SKU', 
+        'Name', 
+        'Regular Price', 
+        'Sale Price', 
+        'Categories', 
+        'Image Link', 
+        'Description',
+        'Is Bundle', 
+        'MPN', 
+        'Availability', 
+        'Google Product Category', 
+        'Link', 
+        'Brand'
+    );
+
+    fputcsv($handle, $headers);
+
+    $args = array(
+        'status' => 'publish',
+        'limit' => -1,
+        'orderby' => 'date',
+        'order' => 'DESC',
+        'type' => array('simple', 'variable'),
+        'return' => 'objects',
+    );
+
+    $products = wc_get_products($args);
+
+    // Debugging: Check if products are fetched
+    //error_log('Number of products fetched: ' . count($products));
+    
+    foreach ($products as $product) {
+        if (is_a($product, 'WC_Product')) {
+            // Common product data
+            $id = $product->get_id();
+            $name = $product->get_name();
+            $regular_price = $product->get_regular_price();
+            $sale_price = $product->get_sale_price();
+            $categories = wp_get_post_terms($product->get_id(), 'product_cat', array('fields' => 'names'));
+            $categories = !empty($categories) ? implode(', ', $categories) : '';
+            $image_id = $product->get_image_id();
+            $image_link = $image_id ? wp_get_attachment_url($image_id) : '';
+            $description = htmlspecialchars(strip_tags($product->get_short_description()));
+            $mpn = ''; // Initialize MPN as empty string.
+            $is_bundle = 'no'; // TODO: This needs custom logic to determine if the product is a bundle.
+            $availability = $product->is_in_stock() ? 'in stock' : 'out of stock';
+            $google_product_category = 'Food, Beverages & Tobacco > Beverages > Tea & Infusions';
+            $product_link = get_permalink($product->get_id());
+            $brand = get_bloginfo('name');
+        
+            if ($product->is_type('variable')) {
+                // For variable products, get the SKU for each variation
+                $variations = $product->get_available_variations();
+                foreach ($variations as $variation) {
+                    $variation_obj = wc_get_product($variation['variation_id']);
+                    $variation_sku = $variation_obj->get_sku();
+                    $variation_price = $variation_obj->get_regular_price();
+                    $variation_sale_price = $variation_obj->get_sale_price();
+                    $variation_image = wp_get_attachment_url($variation_obj->get_image_id());
+                    $mpn = $variation_sku; // Assuming MPN is the same as SKU.
+        
+                    $row = array(
+                        'Product ID' => $id,
+                        'SKU' => $variation_sku,
+                        'Name' => $name,
+                        'Regular Price' => $variation_price,
+                        'Sale Price' => $variation_sale_price,
+                        'Categories' => $categories,
+                        'Image Link' => $variation_image ?: $image_link, // Use variation image if available, otherwise the product image.
+                        'Description' => $description,
+                        'Is Bundle' => $is_bundle,
+                        'MPN' => $variation_sku,
+                        'Availability' => $product->is_in_stock() ? 'in stock' : 'out of stock',
+                        'Google Product Category' => 'Food, Beverages & Tobacco > Beverages > Tea & Infusions',
+                        'Link' => get_permalink($product->get_id()), 
+                        'Brand' => get_bloginfo('name'),
+                    );
+        
+                    // Write each variation as a separate row to the CSV
+                    fputcsv($handle, $row);
+                }
+            } else {
+                // For simple products, just get the regular SKU
+                $sku = $product->get_sku();
+                $mpn = $sku; // Assuming MPN is the same as SKU.
+        
+                $row = array(
+                    'Product ID' => $id,
+                    'SKU' => $sku,
+                    'Name' => $name,
+                    'Regular Price' => $regular_price,
+                    'Sale Price' => $sale_price,
+                    'Categories' => $categories,
+                    'Image Link' => $image_link,
+                    'Description' => $description,
+                    'Is Bundle' => $is_bundle,
+                    'MPN' => $variation_sku,
+                    'Availability' => $product->is_in_stock() ? 'in stock' : 'out of stock',
+                    'Google Product Category' => 'Food, Beverages & Tobacco > Beverages > Tea & Infusions',
+                    'Link' => get_permalink($product->get_id()), 
+                    'Brand' => get_bloginfo('name'),
+                );
+        
+                // Write the product to the CSV
+                fputcsv($handle, $row);
+
+                // Now, let's log some details.
+                // error_log('Product ID: ' . $id . ', SKU: ' . $sku);
+            }
+        } else {
+            // Log an error if $product is not a WC_Product object.
+            error_log('Error: The $product is not a WC_Product object.');
+        }
+    }
+    
+    fclose($handle);
+    exit;
+}
+
 if (!function_exists('get_the_product_sku')) {
     /**
      * Helper function to get the product SKU.
@@ -294,7 +435,7 @@ if (!function_exists('smarty_invalidate_review_feed_cache')) {
             // Invalidate cache
             delete_transient('smarty_google_reviews_feed');
             // Optionally, regenerate the feed file
-            smarty_regenerate_google_reviews_feed();
+            // smarty_regenerate_google_reviews_feed();
         }
     }
     add_action('comment_post', 'smarty_invalidate_review_feed_cache', 10, 2);
@@ -350,6 +491,8 @@ if (!function_exists('smarty_regenerate_feed')) {
 
                     // Variation specific image, if different from the main product image
                     $image_id = $variation->get_image_id() ? $variation->get_image_id() : $product->get_image_id();
+                    $variationImageURL = wp_get_attachment_url($variation->get_image_id());
+                    $mainImageURL = wp_get_attachment_url($product->get_image_id());
 
                     if ($variationImageURL !== $mainImageURL) {
                         $item->addChild('image_link', wp_get_attachment_url($image_id), $gNamespace);
