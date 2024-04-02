@@ -263,19 +263,21 @@ function smarty_generate_csv_export() {
 
     // Define the header row of the CSV
     $headers = array(
-        'Product ID', 
-        'SKU', 
-        'Name', 
-        'Regular Price', 
-        'Sale Price', 
-        'Categories', 
-        'Image Link', 
-        'Description',
+        'ID', // Product ID
+        'ID2', // SKU
+        'Final URL',
+        'Final Mobile URL',
+        'Image URL',
+        'Item Title', 
+        'Item Description',
+        'Item Category',
+        'Price', 
+        'Sale Price',
+        'Google Product Category', 
         'Is Bundle', 
         'MPN', 
         'Availability', 
-        'Google Product Category', 
-        'Link', 
+        'Condition',
         'Brand'
     );
 
@@ -326,19 +328,21 @@ function smarty_generate_csv_export() {
                     $mpn = $variation_sku; // Assuming MPN is the same as SKU.
         
                     $row = array(
-                        'Product ID' => $id,
-                        'SKU' => $variation_sku,
-                        'Name' => $name,
-                        'Regular Price' => $variation_price,
+                        'ID' => $id,
+                        'ID2' => $variation_sku,
+                        'Final URL' => get_permalink($product->get_id()), 
+                        'Final Mobile URL' => get_permalink($product->get_id()), 
+                        'Image URL' => $variation_image ?: $image_link, // Use variation image if available, otherwise the product image.
+                        'Item Title' => $name,
+                        'Item Description' => $description,
+                        'Item Category' => $categories,
+                        'Price' => $variation_price,
                         'Sale Price' => $variation_sale_price,
-                        'Categories' => $categories,
-                        'Image Link' => $variation_image ?: $image_link, // Use variation image if available, otherwise the product image.
-                        'Description' => $description,
+                        'Google Product Category' => 'Food, Beverages & Tobacco > Beverages > Tea & Infusions',
                         'Is Bundle' => $is_bundle,
                         'MPN' => $variation_sku,
                         'Availability' => $product->is_in_stock() ? 'in stock' : 'out of stock',
-                        'Google Product Category' => 'Food, Beverages & Tobacco > Beverages > Tea & Infusions',
-                        'Link' => get_permalink($product->get_id()), 
+                        'Condition' => 'New',
                         'Brand' => get_bloginfo('name'),
                     );
         
@@ -351,19 +355,21 @@ function smarty_generate_csv_export() {
                 $mpn = $sku; // Assuming MPN is the same as SKU.
         
                 $row = array(
-                    'Product ID' => $id,
-                    'SKU' => $sku,
-                    'Name' => $name,
-                    'Regular Price' => $regular_price,
+                    'ID' => $id,
+                    'ID2' => $sku,
+                    'Final URL' => get_permalink($product->get_id()),
+                    'Final Mobile URL' => get_permalink($product->get_id()),
+                    'Image URL' => $image_link,
+                    'Item Title' => $name,
+                    'Item Description' => $description,
+                    'Item Category' => $categories,
+                    'Price' => $regular_price,
                     'Sale Price' => $sale_price,
-                    'Categories' => $categories,
-                    'Image Link' => $image_link,
-                    'Description' => $description,
+                    'Google Product Category' => 'Food, Beverages & Tobacco > Beverages > Tea & Infusions',
                     'Is Bundle' => $is_bundle,
                     'MPN' => $variation_sku,
                     'Availability' => $product->is_in_stock() ? 'in stock' : 'out of stock',
-                    'Google Product Category' => 'Food, Beverages & Tobacco > Beverages > Tea & Infusions',
-                    'Link' => get_permalink($product->get_id()), 
+                    'Condition' => 'New',
                     'Brand' => get_bloginfo('name'),
                 );
         
