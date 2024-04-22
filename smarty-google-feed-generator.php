@@ -91,9 +91,24 @@ if (!function_exists('smarty_generate_google_feed')) {
             // Initialize the XML structure with <feed> as the root element
             $xml = new SimpleXMLElement('<feed xmlns:g="http://base.google.com/ns/1.0"/>');
 
+            $processed_skus = []; // Track SKUs that have been processed
+
             foreach ($products as $product) {
+                $product_sku = $product->get_sku();
+                if (in_array($product_sku, $processed_skus)) {
+                    continue; // Skip this product if its SKU has been processed
+                }
+                $processed_skus[] = $product_sku; // Add SKU to the processed list
+
                 if ($product->is_type('variable')) {
                     foreach ($product->get_children() as $child_id) {
+                        $variation = wc_get_product($child_id);
+                        $variation_sku = $variation->get_sku();
+                        if (in_array($variation_sku, $processed_skus)) {
+                            continue; // Skip this variation if its SKU has been processed
+                        }
+                        $processed_skus[] = $variation_sku; // Add variation SKU to the processed list
+
                         $variation = wc_get_product($child_id);
                         $item = $xml->addChild('item');
                         $gNamespace = 'http://base.google.com/ns/1.0';
@@ -296,7 +311,9 @@ function smarty_generate_csv_export() {
 
     // Debugging: Check if products are fetched
     //error_log('Number of products fetched: ' . count($products));
-    
+
+    $processed_skus = []; // Track SKUs that have been processed
+
     foreach ($products as $product) {
         if (is_a($product, 'WC_Product')) {
             // Common product data
@@ -322,6 +339,12 @@ function smarty_generate_csv_export() {
                 foreach ($variations as $variation) {
                     $variation_obj = wc_get_product($variation['variation_id']);
                     $variation_sku = $variation_obj->get_sku();
+                    
+                    if (in_array($variation_sku, $processed_skus)) {
+                        continue; // Skip this variation if its SKU has been processed
+                    }
+                    $processed_skus[] = $variation_sku; // Add variation SKU to the processed list
+        
                     $variation_price = $variation_obj->get_regular_price();
                     $variation_sale_price = $variation_obj->get_sale_price();
                     $variation_image = wp_get_attachment_url($variation_obj->get_image_id());
@@ -338,7 +361,7 @@ function smarty_generate_csv_export() {
                         'Item Category' => $categories,
                         'Price' => $variation_price,
                         'Sale Price' => $variation_sale_price,
-                        'Google Product Category' => 'Food, Beverages & Tobacco > Beverages > Tea & Infusions',
+                        'Google Product Category' => 'Health & Beauty, Health Care, Fitness & Nutrition, Vitamins & Supplements',
                         'Is Bundle' => $is_bundle,
                         'MPN' => $variation_sku,
                         'Availability' => $product->is_in_stock() ? 'in stock' : 'out of stock',
@@ -350,8 +373,14 @@ function smarty_generate_csv_export() {
                     fputcsv($handle, $row);
                 }
             } else {
+                $product_sku = $product->get_sku();
+                if (in_array($product_sku, $processed_skus)) {
+                    continue; // Skip this product if its SKU has been processed
+                }
+                $processed_skus[] = $product_sku; // Add product SKU to the processed list
+
                 // For simple products, just get the regular SKU
-                $sku = $product->get_sku();
+                $sku = $product_sku;
                 $mpn = $sku; // Assuming MPN is the same as SKU.
         
                 $row = array(
@@ -365,7 +394,7 @@ function smarty_generate_csv_export() {
                     'Item Category' => $categories,
                     'Price' => $regular_price,
                     'Sale Price' => $sale_price,
-                    'Google Product Category' => 'Food, Beverages & Tobacco > Beverages > Tea & Infusions',
+                    'Google Product Category' => 'Health & Beauty, Health Care, Fitness & Nutrition, Vitamins & Supplements',
                     'Is Bundle' => $is_bundle,
                     'MPN' => $variation_sku,
                     'Availability' => $product->is_in_stock() ? 'in stock' : 'out of stock',
@@ -405,12 +434,12 @@ if (!function_exists('smarty_invalidate_feed_cache')) {
      */
     function smarty_invalidate_feed_cache($product_id) {
         // Check if the post is a 'product'
-        if (get_post_type($product_id) === 'product') {
+        //if (get_post_type($product_id) === 'product') {
             // Invalidate cache
-            delete_transient('smarty_google_feed');
-            // Optionally, regenerate the feed file
-            smarty_regenerate_feed();
-        }
+			delete_transient('smarty_google_feed');
+			// Regenerate the feed
+			smarty_regenerate_feed();
+        //}
     }
     add_action('woocommerce_new_product', 'smarty_invalidate_feed_cache');
     add_action('woocommerce_update_product', 'smarty_invalidate_feed_cache');
@@ -646,3 +675,55 @@ if (!function_exists('smarty_feed_generator_deactivate')) {
     }
     register_deactivation_hook(__FILE__, 'smarty_feed_generator_deactivate');
 }
+
+/**
+ * Converts an image from WEBP to PNG, updates the product image, and regenerates the feed.
+ * @param WC_Product $product Product object.
+ */
+function smarty_convert_and_update_product_image($product) {
+    $image_id = $product->get_image_id();
+    if ($image_id) {
+        $file_path = get_attached_file($image_id);
+        if ($file_path && preg_match('/\.webp$/', $file_path)) {
+            $new_file_path = preg_replace('/\.webp$/', '.png', $file_path);
+            if (smarty_convert_webp_to_png($file_path, $new_file_path)) {
+                // Update the attachment file type post meta
+                wp_update_attachment_metadata($image_id, wp_generate_attachment_metadata($image_id, $new_file_path));
+                update_post_meta($image_id, '_wp_attached_file', $new_file_path);
+
+                // Regenerate thumbnails
+                if (function_exists('wp_update_attachment_metadata')) {
+                    wp_update_attachment_metadata($image_id, wp_generate_attachment_metadata($image_id, $new_file_path));
+                }
+
+                // Optionally, delete the original WEBP file
+                @unlink($file_path);
+
+                // Invalidate feed cache and regenerate
+                smarty_invalidate_feed_cache($product->get_id());
+            }
+        }
+    }
+}
+
+/**
+ * Converts a WEBP image file to PNG.
+ * @param string $source The source file path.
+ * @param string $destination The destination file path.
+ * @return bool True on success, false on failure.
+ */
+function smarty_convert_webp_to_png($source, $destination) {
+    if (!function_exists('imagecreatefromwebp')) {
+        error_log('GD Library is not installed or does not support WEBP.');
+        return false;
+    }
+
+    $image = imagecreatefromwebp($source);
+    if (!$image) return false;
+
+    $result = imagepng($image, $destination);
+    imagedestroy($image);
+
+    return $result;
+}
+add_action('woocommerce_admin_process_product_object', 'smarty_convert_and_update_product_image', 10, 1);
