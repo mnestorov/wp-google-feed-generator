@@ -68,107 +68,98 @@ if (!function_exists('smarty_generate_google_feed')) {
      * Generates the custom Google product feed.
      */
     function smarty_generate_google_feed() {
-		header('Content-Type: application/xml; charset=utf-8');
-
-		// Check for a cached version first
-		$cached_feed = get_transient('smarty_google_feed');
-		if ($cached_feed !== false) {
-			echo $cached_feed;
-			exit;
-		}
-
-		if (class_exists('WooCommerce')) {
-			$args = array(
-				'status' => 'publish',
-				'limit' => -1,
-				'orderby' => 'date',
-				'order' => 'DESC',
-				'type' => ['simple', 'variable'], // Include both simple and variable products
-			);
-
-			$products = wc_get_products($args);
-
-			// Initialize the XML structure with <feed> as the root element
-			$xml = new SimpleXMLElement('<feed xmlns:g="http://base.google.com/ns/1.0"/>');
-
-			foreach ($products as $product) {
-				if ($product->is_type('variable')) {
-					// Fetch only the first variation
-					$children_ids = $product->get_children();
-					if (!empty($children_ids)) {
-						$first_child_id = $children_ids[0]; // Get the first variation ID
-						$variation = wc_get_product($first_child_id);
-						$item = $xml->addChild('item');
-						$gNamespace = 'http://base.google.com/ns/1.0';
-
-						// Common attributes for all products
-						$item->addChild('g:id', $variation->get_id(), $gNamespace);
-						$item->addChild('g:sku', $variation->get_sku(), $gNamespace);
-						$item->addChild('title', htmlspecialchars($product->get_name()), $gNamespace);
-						$item->addChild('link', get_permalink($product->get_id()), $gNamespace);
-
-						$description = $product->get_description();
-						$description = empty($description) ? $product->get_short_description() : $description;
-						$item->addChild('description', htmlspecialchars(strip_tags($description)), $gNamespace);
-						$item->addChild('image_link', wp_get_attachment_url($variation->get_image_id() ?: $product->get_image_id()), $gNamespace);
-
-						$gallery_ids = $product->get_gallery_image_ids();
-						foreach ($gallery_ids as $gallery_id) {
-							$item->addChild('additional_image_link', wp_get_attachment_url($gallery_id), $gNamespace);
-						}
-
-						$item->addChild('price', htmlspecialchars($variation->get_regular_price() . ' ' . get_woocommerce_currency()), $gNamespace);
-						if ($variation->is_on_sale()) {
-							$item->addChild('sale_price', htmlspecialchars($variation->get_sale_price() . ' ' . get_woocommerce_currency()), $gNamespace);
-						}
-
-						$categories = wp_get_post_terms($product->get_id(), 'product_cat');
-						if (!empty($categories) && !is_wp_error($categories)) {
-							$category_names = array_map(function($term) { return $term->name; }, $categories);
-							$item->addChild('product_type', htmlspecialchars(join(' > ', $category_names)), $gNamespace);
-						}
-					}
-				} else {
-					// Handle simple products similarly as above
-					$item = $xml->addChild('item');
-					$gNamespace = 'http://base.google.com/ns/1.0';
-					$item->addChild('g:id', $product->get_id(), $gNamespace);
-					$item->addChild('g:sku', $product->get_sku(), $gNamespace);
-					$item->addChild('title', htmlspecialchars($product->get_name()), $gNamespace);
-					$item->addChild('link', get_permalink($product->get_id()), $gNamespace);
-					$description = $product->get_description();
-					$description = empty($description) ? $product->get_short_description() : $description;
-					$item->addChild('description', htmlspecialchars(strip_tags($description)), $gNamespace);
-					$item->addChild('image_link', wp_get_attachment_url($product->get_image_id()), $gNamespace);
-
-					$gallery_ids = $product->get_gallery_image_ids();
-					foreach ($gallery_ids as $gallery_id) {
-						$item->addChild('additional_image_link', wp_get_attachment_url($gallery_id), $gNamespace);
-					}
-
-					$item->addChild('price', htmlspecialchars($product->get_price() . ' ' . get_woocommerce_currency()), $gNamespace);
-					if ($product->is_on_sale()) {
-						$item->addChild('sale_price', htmlspecialchars($product->get_sale_price() . ' ' . get_woocommerce_currency()), $gNamespace);
-					}
-
-					$categories = wp_get_post_terms($product->get_id(), 'product_cat');
-					if (!empty($categories) && !is_wp_error($categories)) {
-						$category_names = array_map(function($term) { return $term->name; }, $categories);
-						$item->addChild('product_type', htmlspecialchars(join(' > ', $category_names)), $gNamespace);
-					}
-				}
-			}
-
-			// Save the feed content and set transient for caching
-			$feed_content = $xml->asXML();
-			set_transient('smarty_google_feed', $feed_content, 12 * HOUR_IN_SECONDS);
-			echo $feed_content;
-			exit;
-		} else {
-			echo '<error>WooCommerce is not active.</error>';
-			exit;
-		}
-	}
+        header('Content-Type: application/xml; charset=utf-8');
+    
+        // Check for a cached version first
+        $cached_feed = get_transient('smarty_google_feed');
+        if ($cached_feed !== false) {
+            echo $cached_feed;
+            exit;
+        }
+    
+        if (class_exists('WooCommerce')) {
+            $args = array(
+                'status' => 'publish',
+                'limit' => -1, // Consider performance and execution time limits
+                'orderby' => 'date',
+                'order' => 'DESC',
+                'type' => ['simple', 'variable'], // Include both simple and variable products
+            );
+    
+            $products = wc_get_products($args);
+            $xml = new SimpleXMLElement('<feed xmlns:g="http://base.google.com/ns/1.0"/>');
+    
+            foreach ($products as $product) {
+                if ($product->is_type('variable')) {
+                    $variations = $product->get_children();
+                    if (!empty($variations)) {
+                        $first_variation_id = $variations[0]; // Get the first variation
+                        $variation = wc_get_product($first_variation_id);
+    
+                        $item = $xml->addChild('item');
+                        $gNamespace = 'http://base.google.com/ns/1.0';
+    
+                        // Include both product ID and SKU for identification
+                        $item->addChild('g:id', $variation->get_id(), $gNamespace);
+                        $item->addChild('g:sku', $variation->get_sku(), $gNamespace);
+                        $item->addChild('title', htmlspecialchars($product->get_name()), $gNamespace);
+                        $item->addChild('link', get_permalink($product->get_id()), $gNamespace);
+    
+                        // Description handling
+                        $description = $product->get_description();
+                        $description = empty($description) ? $product->get_short_description() : $description;
+                        $item->addChild('description', htmlspecialchars(strip_tags($description)), $gNamespace);
+    
+                        // Image handling
+                        $item->addChild('image_link', wp_get_attachment_url($variation->get_image_id() ?: $product->get_image_id()), $gNamespace);
+    
+                        // Price
+                        $item->addChild('price', htmlspecialchars($variation->get_regular_price() . ' ' . get_woocommerce_currency()), $gNamespace);
+                        if ($variation->is_on_sale()) {
+                            $item->addChild('sale_price', htmlspecialchars($variation->get_sale_price() . ' ' . get_woocommerce_currency()), $gNamespace);
+                        }
+    
+                        // Categories
+                        $categories = wp_get_post_terms($product->get_id(), 'product_cat');
+                        if (!empty($categories) && !is_wp_error($categories)) {
+                            $category_names = array_map(function($term) { return $term->name; }, $categories);
+                            $item->addChild('product_type', htmlspecialchars(join(' > ', $category_names)), $gNamespace);
+                        }
+                    }
+                } else {
+                    // Simple products are handled similarly
+                    $item = $xml->addChild('item');
+                    $gNamespace = 'http://base.google.com/ns/1.0';
+                    $item->addChild('g:id', $product->get_id(), $gNamespace);
+                    $item->addChild('g:sku', $product->get_sku(), $gNamespace);
+                    $item->addChild('title', htmlspecialchars($product->get_name()), $gNamespace);
+                    $item->addChild('link', get_permalink($product->get_id()), $gNamespace);
+                    $description = $product->get_description();
+                    $description = empty($description) ? $product->get_short_description() : $description;
+                    $item->addChild('description', htmlspecialchars(strip_tags($description)), $gNamespace);
+                    $item->addChild('image_link', wp_get_attachment_url($product->get_image_id()), $gNamespace);
+                    $item->addChild('price', htmlspecialchars($product->get_price() . ' ' . get_woocommerce_currency()), $gNamespace);
+                    if ($product->is_on_sale()) {
+                        $item->addChild('sale_price', htmlspecialchars($product->get_sale_price() . ' ' . get_woocommerce_currency()), $gNamespace);
+                    }
+                    $categories = wp_get_post_terms($product->get_id(), 'product_cat');
+                    if (!empty($categories) && !is_wp_error($categories)) {
+                        $category_names = array_map(function($term) { return $term->name; }, $categories);
+                        $item->addChild('product_type', htmlspecialchars(join(' > ', $category_names)), $gNamespace);
+                    }
+                }
+            }
+    
+            // Save and output the XML
+            $feed_content = $xml->asXML();
+            set_transient('smarty_google_feed', $feed_content, 12 * HOUR_IN_SECONDS);
+            echo $feed_content;
+            exit;
+        } else {
+            echo '<error>WooCommerce is not active.</error>';
+            exit;
+        }
+    }
 }
 
 if (!function_exists('smarty_generate_google_reviews_feed')) {
@@ -210,158 +201,102 @@ if (!function_exists('smarty_generate_google_reviews_feed')) {
     }
 }
 
-function smarty_generate_csv_export() {
-    header('Content-Type: text/csv; charset=utf-8');
-    header('Content-Disposition: attachment; filename="woocommerce-products.csv"');
-
-    // Open output stream directly for download
-    $handle = fopen('php://output', 'w');
-    if ($handle === false) {
-        // Handle error appropriately
-        wp_die('Failed to open output stream for CSV export');
-    }
-
-    // Define the header row of the CSV
-    $headers = array(
-        'ID', // Product ID
-        'ID2', // SKU
-        'Final URL',
-        'Final Mobile URL',
-        'Image URL',
-        'Item Title', 
-        'Item Description',
-        'Item Category',
-        'Price', 
-        'Sale Price',
-        'Google Product Category', 
-        'Is Bundle', 
-        'MPN', 
-        'Availability', 
-        'Condition',
-        'Brand'
-    );
-
-    fputcsv($handle, $headers);
-
-    $args = array(
-        'status' => 'publish',
-        'limit' => -1,
-        'orderby' => 'date',
-        'order' => 'DESC',
-        'type' => array('simple', 'variable'),
-        'return' => 'objects',
-    );
-
-    $products = wc_get_products($args);
-
-    // Debugging: Check if products are fetched
-    //error_log('Number of products fetched: ' . count($products));
-
-    $processed_skus = []; // Track SKUs that have been processed
-
-    foreach ($products as $product) {
-        if (is_a($product, 'WC_Product')) {
-            // Common product data
+if (!function_exists('smarty_generate_csv_export')) {
+    function smarty_generate_csv_export() {
+        header('Content-Type: text/csv; charset=utf-8');
+        header('Content-Disposition: attachment; filename="woocommerce-products.csv"');
+    
+        // Open output stream directly for download
+        $handle = fopen('php://output', 'w');
+        if ($handle === false) {
+            wp_die('Failed to open output stream for CSV export');
+        }
+    
+        // Define the header row of the CSV
+        $headers = array(
+            'ID', // Product ID
+            'ID2', // SKU
+            'Final URL',
+            'Final Mobile URL',
+            'Image URL',
+            'Item Title',
+            'Item Description',
+            'Item Category',
+            'Price',
+            'Sale Price',
+            'Google Product Category',
+            'Is Bundle',
+            'MPN',
+            'Availability',
+            'Condition',
+            'Brand'
+        );
+    
+        fputcsv($handle, $headers);
+    
+        $args = array(
+            'status' => 'publish',
+            'limit' => -1,
+            'orderby' => 'date',
+            'order' => 'DESC',
+            'type' => array('simple', 'variable'),
+            'return' => 'objects',
+        );
+    
+        $products = wc_get_products($args);
+        $exclude_patterns = ['-fb', '-2', '-copy', '-digital-edition', '-plan', '-gift'];
+    
+        foreach ($products as $product) {
+            $product_link = get_permalink($product->get_id());
+    
+            // Check if the URL contains any of the excluded patterns
+            foreach ($exclude_patterns as $pattern) {
+                if (strpos($product_link, $pattern) !== false) {
+                    continue 2; // Skip to the next product if a pattern is found
+                }
+            }
+    
+            // Collect product data
             $id = $product->get_id();
             $name = $product->get_name();
             $regular_price = $product->get_regular_price();
-            $sale_price = $product->get_sale_price();
-            $categories = wp_get_post_terms($product->get_id(), 'product_cat', array('fields' => 'names'));
+            $sale_price = $product->get_sale_price() ?: '';
+            $categories = wp_get_post_terms($id, 'product_cat', array('fields' => 'names'));
             $categories = !empty($categories) ? implode(', ', $categories) : '';
             $image_id = $product->get_image_id();
             $image_link = $image_id ? wp_get_attachment_url($image_id) : '';
             $description = htmlspecialchars(strip_tags($product->get_short_description()));
-			$description = preg_replace('/\s+/', ' ', $description);
-            $mpn = ''; // Initialize MPN as empty string.
-            $is_bundle = 'no'; // TODO: This needs custom logic to determine if the product is a bundle.
+            $description = preg_replace('/\s+/', ' ', $description);
             $availability = $product->is_in_stock() ? 'in stock' : 'out of stock';
             $google_product_category = 'Food, Beverages & Tobacco > Beverages > Tea & Infusions';
-            $product_link = get_permalink($product->get_id());
             $brand = get_bloginfo('name');
-        
-            if ($product->is_type('variable')) {
-                // For variable products, get the SKU for each variation
-                $variations = $product->get_available_variations();
-                foreach ($variations as $variation) {
-                    $variation_obj = wc_get_product($variation['variation_id']);
-                    $variation_sku = $variation_obj->get_sku();
-                    
-                    if (in_array($variation_sku, $processed_skus)) {
-                        continue; // Skip this variation if its SKU has been processed
-                    }
-                    $processed_skus[] = $variation_sku; // Add variation SKU to the processed list
-        
-                    $variation_price = $variation_obj->get_regular_price();
-                    $variation_sale_price = $variation_obj->get_sale_price();
-                    $variation_image = wp_get_attachment_url($variation_obj->get_image_id());
-                    $mpn = $variation_sku; // Assuming MPN is the same as SKU.
-        
-                    $row = array(
-                        'ID' => $id,
-                        'ID2' => $variation_sku,
-                        'Final URL' => get_permalink($product->get_id()), 
-                        'Final Mobile URL' => get_permalink($product->get_id()), 
-                        'Image URL' => $variation_image ?: $image_link, // Use variation image if available, otherwise the product image.
-                        'Item Title' => $name,
-                        'Item Description' => $description,
-                        'Item Category' => $categories,
-                        'Price' => $variation_price,
-                        'Sale Price' => $variation_sale_price,
-                        'Google Product Category' => 'Health & Beauty, Health Care, Fitness & Nutrition, Vitamins & Supplements',
-                        'Is Bundle' => $is_bundle,
-                        'MPN' => $variation_sku,
-                        'Availability' => $product->is_in_stock() ? 'in stock' : 'out of stock',
-                        'Condition' => 'New',
-                        'Brand' => get_bloginfo('name'),
-                    );
-        
-                    // Write each variation as a separate row to the CSV
-                    fputcsv($handle, $row);
-                }
-            } else {
-                $product_sku = $product->get_sku();
-                if (in_array($product_sku, $processed_skus)) {
-                    continue; // Skip this product if its SKU has been processed
-                }
-                $processed_skus[] = $product_sku; // Add product SKU to the processed list
-
-                // For simple products, just get the regular SKU
-                $sku = $product_sku;
-                $mpn = $sku; // Assuming MPN is the same as SKU.
-        
-                $row = array(
-                    'ID' => $id,
-                    'ID2' => $sku,
-                    'Final URL' => get_permalink($product->get_id()),
-                    'Final Mobile URL' => get_permalink($product->get_id()),
-                    'Image URL' => $image_link,
-                    'Item Title' => $name,
-                    'Item Description' => $description,
-                    'Item Category' => $categories,
-                    'Price' => $regular_price,
-                    'Sale Price' => $sale_price,
-                    'Google Product Category' => 'Health & Beauty, Health Care, Fitness & Nutrition, Vitamins & Supplements',
-                    'Is Bundle' => $is_bundle,
-                    'MPN' => $variation_sku,
-                    'Availability' => $product->is_in_stock() ? 'in stock' : 'out of stock',
-                    'Condition' => 'New',
-                    'Brand' => get_bloginfo('name'),
-                );
-        
-                // Write the product to the CSV
-                fputcsv($handle, $row);
-
-                // Now, let's log some details.
-                // error_log('Product ID: ' . $id . ', SKU: ' . $sku);
-            }
-        } else {
-            // Log an error if $product is not a WC_Product object.
-            error_log('Error: The $product is not a WC_Product object.');
-        }
-    }
+            $sku = $product->get_sku();
     
-    fclose($handle);
-    exit;
+            $row = array(
+                'ID' => $id,
+                'ID2' => $sku,
+                'Final URL' => $product_link,
+                'Final Mobile URL' => $product_link,
+                'Image URL' => $image_link,
+                'Item Title' => $name,
+                'Item Description' => $description,
+                'Item Category' => $categories,
+                'Price' => $regular_price,
+                'Sale Price' => $sale_price,
+                'Google Product Category' => 'Health & Beauty, Health Care, Fitness & Nutrition, Vitamins & Supplements',
+                'Is Bundle' => 'no',
+                'MPN' => $sku,
+                'Availability' => $availability,
+                'Condition' => 'New',
+                'Brand' => $brand,
+            );
+    
+            fputcsv($handle, $row);
+        }
+    
+        fclose($handle);
+        exit;
+    }    
 }
 
 if (!function_exists('get_the_product_sku')) {
