@@ -69,6 +69,9 @@ if (!function_exists('smarty_generate_google_feed')) {
      */
     function smarty_generate_google_feed() {
         header('Content-Type: application/xml; charset=utf-8');
+
+        // Force clear the transient for testing purposes
+        delete_transient('smarty_google_feed');  // Remove this line in production once confirmed working
     
         // Check for a cached version first
         $cached_feed = get_transient('smarty_google_feed');
@@ -80,6 +83,7 @@ if (!function_exists('smarty_generate_google_feed')) {
         if (class_exists('WooCommerce')) {
             $args = array(
                 'status' => 'publish',
+                'stock_status' => 'instock', // Only in-stock products
                 'limit' => -1, // Consider performance and execution time limits
                 'orderby' => 'date',
                 'order' => 'DESC',
@@ -91,40 +95,48 @@ if (!function_exists('smarty_generate_google_feed')) {
     
             foreach ($products as $product) {
                 if ($product->is_type('variable')) {
-                    $variations = $product->get_children();
+                     $variations = $product->get_children();
                     if (!empty($variations)) {
                         $first_variation_id = $variations[0]; // Get the first variation
                         $variation = wc_get_product($first_variation_id);
-    
                         $item = $xml->addChild('item');
                         $gNamespace = 'http://base.google.com/ns/1.0';
-    
+        
                         // Include both product ID and SKU for identification
                         $item->addChild('g:id', $variation->get_id(), $gNamespace);
                         $item->addChild('g:sku', $variation->get_sku(), $gNamespace);
                         $item->addChild('title', htmlspecialchars($product->get_name()), $gNamespace);
                         $item->addChild('link', get_permalink($product->get_id()), $gNamespace);
-    
+        
                         // Description handling
                         $description = $product->get_description();
                         $description = empty($description) ? $product->get_short_description() : $description;
                         $item->addChild('description', htmlspecialchars(strip_tags($description)), $gNamespace);
-    
-                        // Image handling
-                        $item->addChild('image_link', wp_get_attachment_url($variation->get_image_id() ?: $product->get_image_id()), $gNamespace);
-    
+        
+                        // Variation specific image
+                        $image_id = $variation->get_image_id() ? $variation->get_image_id() : $product->get_image_id();
+                        $item->addChild('image_link', wp_get_attachment_url($image_id), $gNamespace);
+
+                        // Additional Images from the parent product
+                        $gallery_ids = $product->get_gallery_image_ids();
+                        
+                        foreach ($gallery_ids as $gallery_id) {
+                            $item->addChild('additional_image_link', wp_get_attachment_url($gallery_id), $gNamespace);
+                        }
+        
                         // Price
                         $item->addChild('price', htmlspecialchars($variation->get_regular_price() . ' ' . get_woocommerce_currency()), $gNamespace);
                         if ($variation->is_on_sale()) {
                             $item->addChild('sale_price', htmlspecialchars($variation->get_sale_price() . ' ' . get_woocommerce_currency()), $gNamespace);
                         }
-    
+        
                         // Categories
                         $categories = wp_get_post_terms($product->get_id(), 'product_cat');
                         if (!empty($categories) && !is_wp_error($categories)) {
                             $category_names = array_map(function($term) { return $term->name; }, $categories);
                             $item->addChild('product_type', htmlspecialchars(join(' > ', $category_names)), $gNamespace);
                         }
+                       
                     }
                 } else {
                     // Simple products are handled similarly
@@ -236,6 +248,7 @@ if (!function_exists('smarty_generate_csv_export')) {
     
         $args = array(
             'status' => 'publish',
+            'stock_status' => 'instock', // Only in-stock products
             'limit' => -1,
             'orderby' => 'date',
             'order' => 'DESC',
@@ -329,7 +342,7 @@ if (!function_exists('smarty_generate_csv_export')) {
     
         fclose($handle);
         exit;
-    }    
+    }
 }
 
 if (!function_exists('get_the_product_sku')) {
@@ -348,12 +361,12 @@ if (!function_exists('smarty_invalidate_feed_cache')) {
      */
     function smarty_invalidate_feed_cache($product_id) {
         // Check if the post is a 'product'
-        //if (get_post_type($product_id) === 'product') {
+        if (get_post_type($product_id) === 'product') {
             // Invalidate cache
 			delete_transient('smarty_google_feed');
 			// Regenerate the feed
 			smarty_regenerate_feed();
-        //}
+        }
     }
     add_action('woocommerce_new_product', 'smarty_invalidate_feed_cache');
     add_action('woocommerce_update_product', 'smarty_invalidate_feed_cache');
@@ -400,6 +413,7 @@ if (!function_exists('smarty_regenerate_feed')) {
 	function smarty_regenerate_feed() {
 		$products = wc_get_products(array(
 			'status' => 'publish',
+            'stock_status' => 'instock',
 			'limit' => -1,
 			'orderby' => 'date',
 			'order' => 'DESC',
@@ -528,9 +542,6 @@ if (!function_exists('smarty_regenerate_feed')) {
 		file_put_contents(WP_CONTENT_DIR . '/uploads/smarty_google_feed.xml', $feed_content);
 	}
 }
-
-// Call this function to regenerate the feed
-//smarty_regenerate_feed();
 
 if (!function_exists('smarty_handle_product_change')) {
     /**
