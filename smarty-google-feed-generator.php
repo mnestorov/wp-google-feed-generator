@@ -108,11 +108,11 @@ if (!function_exists('smarty_generate_google_feed')) {
                         $item->addChild('title', htmlspecialchars($product->get_name()), $gNamespace);
                         $item->addChild('link', get_permalink($product->get_id()), $gNamespace);
         
-                        // Description handling
-                        $description = $product->get_description();
-                        $description = empty($description) ? $product->get_short_description() : $description;
+                        // Handling description with fallback to short description
+                        $meta_description = get_post_meta($product->get_id(), 'veni-description', true);
+                        $description = !empty($meta_description) ? $meta_description : $product->get_short_description();
                         $item->addChild('description', htmlspecialchars(strip_tags($description)), $gNamespace);
-        
+
                         // Variation specific image
                         $image_id = $variation->get_image_id() ? $variation->get_image_id() : $product->get_image_id();
                         $item->addChild('image_link', wp_get_attachment_url($image_id), $gNamespace);
@@ -277,8 +277,12 @@ if (!function_exists('smarty_generate_csv_export')) {
             $categories = !empty($categories) ? implode(', ', $categories) : '';
             $image_id = $product->get_image_id();
             $image_link = $image_id ? wp_get_attachment_url($image_id) : '';
-            $description = htmlspecialchars(strip_tags($product->get_short_description()));
+
+            // Fetch the custom field for the description
+            $meta_description = get_post_meta($id, 'veni-description', true);
+            $description = !empty($meta_description) ? htmlspecialchars(strip_tags($meta_description)) : htmlspecialchars(strip_tags($product->get_short_description()));
             $description = preg_replace('/\s+/', ' ', $description);
+            
             $availability = $product->is_in_stock() ? 'in stock' : 'out of stock';
             $google_product_category = 'Health & Beauty, Health Care, Fitness & Nutrition, Vitamins & Supplements';
             $brand = get_bloginfo('name');
