@@ -249,14 +249,13 @@ if (!function_exists('smarty_generate_csv_export')) {
         foreach ($products as $product) {
             $product_link = get_permalink($product->get_id());
     
-            // Check if the URL contains any of the excluded patterns
+            // Skip product if URL contains any excluded patterns
             foreach ($exclude_patterns as $pattern) {
                 if (strpos($product_link, $pattern) !== false) {
-                    continue 2; // Skip to the next product if a pattern is found
+                    continue 2; // Skip this product
                 }
             }
     
-            // Collect product data
             $id = $product->get_id();
             $name = $product->get_name();
             $regular_price = $product->get_regular_price();
@@ -268,30 +267,64 @@ if (!function_exists('smarty_generate_csv_export')) {
             $description = htmlspecialchars(strip_tags($product->get_short_description()));
             $description = preg_replace('/\s+/', ' ', $description);
             $availability = $product->is_in_stock() ? 'in stock' : 'out of stock';
-            $google_product_category = 'Food, Beverages & Tobacco > Beverages > Tea & Infusions';
+            $google_product_category = 'Health & Beauty, Health Care, Fitness & Nutrition, Vitamins & Supplements';
             $brand = get_bloginfo('name');
-            $sku = $product->get_sku();
     
-            $row = array(
-                'ID' => $id,
-                'ID2' => $sku,
-                'Final URL' => $product_link,
-                'Final Mobile URL' => $product_link,
-                'Image URL' => $image_link,
-                'Item Title' => $name,
-                'Item Description' => $description,
-                'Item Category' => $categories,
-                'Price' => $regular_price,
-                'Sale Price' => $sale_price,
-                'Google Product Category' => 'Health & Beauty, Health Care, Fitness & Nutrition, Vitamins & Supplements',
-                'Is Bundle' => 'no',
-                'MPN' => $sku,
-                'Availability' => $availability,
-                'Condition' => 'New',
-                'Brand' => $brand,
-            );
+            if ($product->is_type('variable')) {
+                $variations = $product->get_children();
+                if (!empty($variations)) {
+                    $first_variation_id = reset($variations); // Get only the first variation
+                    $variation = wc_get_product($first_variation_id);
+                    $sku = $variation->get_sku();
+                    $variation_image = wp_get_attachment_url($variation->get_image_id());
+                    $variation_price = $variation->get_regular_price();
+                    $variation_sale_price = $variation->get_sale_price() ?: '';
     
-            fputcsv($handle, $row);
+                    $row = array(
+                        'ID' => $id,
+                        'ID2' => $sku,
+                        'Final URL' => $product_link,
+                        'Final Mobile URL' => $product_link,
+                        'Image URL' => $variation_image,
+                        'Item Title' => $name,
+                        'Item Description' => $description,
+                        'Item Category' => $categories,
+                        'Price' => $variation_price,
+                        'Sale Price' => $variation_sale_price,
+                        'Google Product Category' => $google_product_category,
+                        'Is Bundle' => 'no',
+                        'MPN' => $sku,
+                        'Availability' => $availability,
+                        'Condition' => 'New',
+                        'Brand' => $brand,
+                    );
+                }
+            } else {
+                $sku = $product->get_sku();
+                $row = array(
+                    'ID' => $id,
+                    'ID2' => $sku,
+                    'Final URL' => $product_link,
+                    'Final Mobile URL' => $product_link,
+                    'Image URL' => $image_link,
+                    'Item Title' => $name,
+                    'Item Description' => $description,
+                    'Item Category' => $categories,
+                    'Price' => $regular_price,
+                    'Sale Price' => $sale_price,
+                    'Google Product Category' => $google_product_category,
+                    'Is Bundle' => 'no',
+                    'MPN' => $sku,
+                    'Availability' => $availability,
+                    'Condition' => 'New',
+                    'Brand' => $brand,
+                );
+            }
+    
+            // Only output the row if the SKU is set (some products may not have variations correctly set)
+            if (!empty($sku)) {
+                fputcsv($handle, $row);
+            }
         }
     
         fclose($handle);
