@@ -20,9 +20,9 @@ if (!function_exists('smarty_feed_generator_add_rewrite_rules')) {
      * Add rewrite rules for custom endpoints.
      */
     function smarty_feed_generator_add_rewrite_rules() {
-        add_rewrite_rule('^smarty-google-feed/?', 'index.php?smarty_google_feed=1', 'top');
-        add_rewrite_rule('^smarty-google-reviews-feed/?', 'index.php?smarty_google_reviews_feed=1', 'top');
-        add_rewrite_rule('^smarty-csv-export/?', 'index.php?smarty_csv_export=1', 'top');
+        add_rewrite_rule('^smarty-google-feed/?', 'index.php?smarty_google_feed=1', 'top');                 // url: ?smarty-google-feed
+        add_rewrite_rule('^smarty-google-reviews-feed/?', 'index.php?smarty_google_reviews_feed=1', 'top'); // url: ?smarty-google-reviews-feed
+        add_rewrite_rule('^smarty-csv-export/?', 'index.php?smarty_csv_export=1', 'top');                   // url: ?smarty-csv-export
     }
     add_action('init', 'smarty_feed_generator_add_rewrite_rules');
 }
@@ -594,27 +594,29 @@ if (!function_exists('smarty_feed_generator_deactivate')) {
  * Converts an image from WEBP to PNG, updates the product image, and regenerates the feed.
  * @param WC_Product $product Product object.
  */
-function smarty_convert_and_update_product_image($product) {
-    $image_id = $product->get_image_id();
-    if ($image_id) {
-        $file_path = get_attached_file($image_id);
-        if ($file_path && preg_match('/\.webp$/', $file_path)) {
-            $new_file_path = preg_replace('/\.webp$/', '.png', $file_path);
-            if (smarty_convert_webp_to_png($file_path, $new_file_path)) {
-                // Update the attachment file type post meta
-                wp_update_attachment_metadata($image_id, wp_generate_attachment_metadata($image_id, $new_file_path));
-                update_post_meta($image_id, '_wp_attached_file', $new_file_path);
-
-                // Regenerate thumbnails
-                if (function_exists('wp_update_attachment_metadata')) {
+if (!function_exists('smarty_convert_and_update_product_image')) {
+    function smarty_convert_and_update_product_image($product) {
+        $image_id = $product->get_image_id();
+        if ($image_id) {
+            $file_path = get_attached_file($image_id);
+            if ($file_path && preg_match('/\.webp$/', $file_path)) {
+                $new_file_path = preg_replace('/\.webp$/', '.png', $file_path);
+                if (smarty_convert_webp_to_png($file_path, $new_file_path)) {
+                    // Update the attachment file type post meta
                     wp_update_attachment_metadata($image_id, wp_generate_attachment_metadata($image_id, $new_file_path));
+                    update_post_meta($image_id, '_wp_attached_file', $new_file_path);
+
+                    // Regenerate thumbnails
+                    if (function_exists('wp_update_attachment_metadata')) {
+                        wp_update_attachment_metadata($image_id, wp_generate_attachment_metadata($image_id, $new_file_path));
+                    }
+
+                    // Optionally, delete the original WEBP file
+                    @unlink($file_path);
+
+                    // Invalidate feed cache and regenerate
+                    smarty_invalidate_feed_cache($product->get_id());
                 }
-
-                // Optionally, delete the original WEBP file
-                @unlink($file_path);
-
-                // Invalidate feed cache and regenerate
-                smarty_invalidate_feed_cache($product->get_id());
             }
         }
     }
@@ -626,18 +628,20 @@ function smarty_convert_and_update_product_image($product) {
  * @param string $destination The destination file path.
  * @return bool True on success, false on failure.
  */
-function smarty_convert_webp_to_png($source, $destination) {
-    if (!function_exists('imagecreatefromwebp')) {
-        error_log('GD Library is not installed or does not support WEBP.');
-        return false;
+if (!function_exists('smarty_convert_webp_to_png')) {
+    function smarty_convert_webp_to_png($source, $destination) {
+        if (!function_exists('imagecreatefromwebp')) {
+            error_log('GD Library is not installed or does not support WEBP.');
+            return false;
+        }
+
+        $image = imagecreatefromwebp($source);
+        if (!$image) return false;
+
+        $result = imagepng($image, $destination);
+        imagedestroy($image);
+
+        return $result;
     }
-
-    $image = imagecreatefromwebp($source);
-    if (!$image) return false;
-
-    $result = imagepng($image, $destination);
-    imagedestroy($image);
-
-    return $result;
+    add_action('woocommerce_admin_process_product_object', 'smarty_convert_and_update_product_image', 10, 1);
 }
-add_action('woocommerce_admin_process_product_object', 'smarty_convert_and_update_product_image', 10, 1);
