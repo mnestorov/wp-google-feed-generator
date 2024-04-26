@@ -605,11 +605,11 @@ if (!function_exists('smarty_feed_generator_deactivate')) {
     register_deactivation_hook(__FILE__, 'smarty_feed_generator_deactivate');
 }
 
-/**
- * Converts an image from WEBP to PNG, updates the product image, and regenerates the feed.
- * @param WC_Product $product Product object.
- */
 if (!function_exists('smarty_convert_and_update_product_image')) {
+    /**
+     * Converts an image from WEBP to PNG, updates the product image, and regenerates the feed.
+     * @param WC_Product $product Product object.
+     */
     function smarty_convert_and_update_product_image($product) {
         $image_id = $product->get_image_id();
         if ($image_id) {
@@ -637,13 +637,13 @@ if (!function_exists('smarty_convert_and_update_product_image')) {
     }
 }
 
-/**
- * Converts a WEBP image file to PNG.
- * @param string $source The source file path.
- * @param string $destination The destination file path.
- * @return bool True on success, false on failure.
- */
 if (!function_exists('smarty_convert_webp_to_png')) {
+    /**
+     * Converts a WEBP image file to PNG.
+     * @param string $source The source file path.
+     * @param string $destination The destination file path.
+     * @return bool True on success, false on failure.
+     */
     function smarty_convert_webp_to_png($source, $destination) {
         if (!function_exists('imagecreatefromwebp')) {
             error_log('GD Library is not installed or does not support WEBP.');
