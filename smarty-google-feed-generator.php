@@ -136,7 +136,6 @@ if (!function_exists('smarty_generate_google_feed')) {
                             $category_names = array_map(function($term) { return $term->name; }, $categories);
                             $item->addChild('product_type', htmlspecialchars(join(' > ', $category_names)), $gNamespace);
                         }
-                       
                     }
                 } else {
                     // Simple products are handled similarly
