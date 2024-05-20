@@ -32,6 +32,7 @@ After activating the plugin, it automatically generates product and review feeds
 
 - **Product Feed URL:** https://yourdomain.com/smarty-google-feed
 - **Review Feed URL:** https://yourdomain.com/smarty-google-reviews-feed
+- **CSV Feed Export:** https://yourdomain.com/smarty-csv-export
 
 These URLs can be submitted to [Google Merchant Center](https://www.google.com/retail/solutions/merchant-center/) for product data and review integration.
 
