@@ -75,6 +75,7 @@ if (!function_exists('smarty_generate_google_feed')) {
     
         // Check for a cached version first
         $cached_feed = get_transient('smarty_google_feed');
+        
         if ($cached_feed !== false) {
             echo $cached_feed;
             exit;
@@ -86,17 +87,17 @@ if (!function_exists('smarty_generate_google_feed')) {
             $checkout_upsell_term_id = get_term_by('slug', 'checkout-upsell', 'product_cat')->term_id;
 
             $args = array(
-                'status' => 'publish',
+                'status'       => 'publish',
                 'stock_status' => 'instock',
-                'limit' => -1,
-                'orderby' => 'date',
-                'order' => 'DESC',
-                'type' => ['simple', 'variable'],
-                'tax_query' => array(
+                'limit'        => -1,
+                'orderby'      => 'date',
+                'order'        => 'DESC',
+                'type'         => ['simple', 'variable'],
+                'tax_query'    => array(
                     array(
                         'taxonomy' => 'product_cat',
-                        'field' => 'term_id',
-                        'terms' => [$uncategorized_term_id, $upsell_term_id, $checkout_upsell_term_id],
+                        'field'    => 'term_id',
+                        'terms'    => [$uncategorized_term_id, $upsell_term_id, $checkout_upsell_term_id],
                         'operator' => 'NOT IN',
                     ),
                 ),
@@ -107,7 +108,8 @@ if (!function_exists('smarty_generate_google_feed')) {
     
             foreach ($products as $product) {
                 if ($product->is_type('variable')) {
-                     $variations = $product->get_children();
+                    $variations = $product->get_children();
+
                     if (!empty($variations)) {
                         $first_variation_id = $variations[0]; // Get the first variation
                         $variation = wc_get_product($first_variation_id);
@@ -138,12 +140,14 @@ if (!function_exists('smarty_generate_google_feed')) {
         
                         // Price
                         $item->addChild('price', htmlspecialchars($variation->get_regular_price() . ' ' . get_woocommerce_currency()), $gNamespace);
+                        
                         if ($variation->is_on_sale()) {
                             $item->addChild('sale_price', htmlspecialchars($variation->get_sale_price() . ' ' . get_woocommerce_currency()), $gNamespace);
                         }
         
                         // Categories
                         $categories = wp_get_post_terms($product->get_id(), 'product_cat');
+                        
                         if (!empty($categories) && !is_wp_error($categories)) {
                             $category_names = array_map(function($term) { return $term->name; }, $categories);
                             $item->addChild('product_type', htmlspecialchars(join(' > ', $category_names)), $gNamespace);
@@ -162,10 +166,13 @@ if (!function_exists('smarty_generate_google_feed')) {
                     $item->addChild('description', htmlspecialchars(strip_tags($description)), $gNamespace);
                     $item->addChild('image_link', wp_get_attachment_url($product->get_image_id()), $gNamespace);
                     $item->addChild('price', htmlspecialchars($product->get_price() . ' ' . get_woocommerce_currency()), $gNamespace);
+                    
                     if ($product->is_on_sale()) {
                         $item->addChild('sale_price', htmlspecialchars($product->get_sale_price() . ' ' . get_woocommerce_currency()), $gNamespace);
                     }
+
                     $categories = wp_get_post_terms($product->get_id(), 'product_cat');
+
                     if (!empty($categories) && !is_wp_error($categories)) {
                         $category_names = array_map(function($term) { return $term->name; }, $categories);
                         $item->addChild('product_type', htmlspecialchars(join(' > ', $category_names)), $gNamespace);
@@ -231,6 +238,7 @@ if (!function_exists('smarty_generate_csv_export')) {
     
         // Open output stream directly for download
         $handle = fopen('php://output', 'w');
+        
         if ($handle === false) {
             wp_die('Failed to open output stream for CSV export');
         }
@@ -262,18 +270,18 @@ if (!function_exists('smarty_generate_csv_export')) {
         $checkout_upsell_term_id = get_term_by('slug', 'checkout-upsell', 'product_cat')->term_id;
 
         $args = array(
-            'status' => 'publish',
-            'stock_status' => 'instock',
-            'limit' => -1,
-            'orderby' => 'date',
-            'order' => 'DESC',
-            'type' => ['simple', 'variable'],
-            'tax_query' => array(
+            'status'        => 'publish',
+            'stock_status'  => 'instock',
+            'limit'         => -1,
+            'orderby'       => 'date',
+            'order'         => 'DESC',
+            'type'          => ['simple', 'variable'],
+            'tax_query'     => array(
                 array(
-                    'taxonomy' => 'product_cat',
-                    'field' => 'term_id',
-                    'terms' => [$uncategorized_term_id, $upsell_term_id, $checkout_upsell_term_id],
-                    'operator' => 'NOT IN',
+                    'taxonomy'  => 'product_cat',
+                    'field'     => 'term_id',
+                    'terms'     => [$uncategorized_term_id, $upsell_term_id, $checkout_upsell_term_id],
+                    'operator'  => 'NOT IN',
                 ),
             ),
         );
@@ -318,13 +326,13 @@ if (!function_exists('smarty_generate_csv_export')) {
             $meta_description = get_post_meta($id, 'veni-description', true); // TODO: #3 Need to be change as logic and custom field name
             $description = !empty($meta_description) ? htmlspecialchars(strip_tags($meta_description)) : htmlspecialchars(strip_tags($product->get_short_description()));
             $description = preg_replace('/\s+/', ' ', $description);
-            
             $availability = $product->is_in_stock() ? 'in stock' : 'out of stock';
             $google_product_category = 'Food, Beverages & Tobacco > Beverages > Tea & Infusions'; // TODO: #2 Make this to be set from the plugin settings page with dropdown/select field to set Google category
             $brand = get_bloginfo('name');
     
             if ($product->is_type('variable')) {
                 $variations = $product->get_children();
+                
                 if (!empty($variations)) {
                     $first_variation_id = reset($variations); // Get only the first variation
                     $variation = wc_get_product($first_variation_id);
@@ -334,43 +342,43 @@ if (!function_exists('smarty_generate_csv_export')) {
                     $variation_sale_price = $variation->get_sale_price() ?: '';
     
                     $row = array(
-                        'ID' => $id,
-                        'ID2' => $sku,
-                        'Final URL' => $product_link,
-                        'Final Mobile URL' => $product_link,
-                        'Image URL' => $variation_image,
-                        'Item Title' => $name,
-                        'Item Description' => $description,
-                        'Item Category' => $categories,
-                        'Price' => $variation_price,
-                        'Sale Price' => $variation_sale_price,
+                        'ID'                      => $id,
+                        'ID2'                     => $sku,
+                        'Final URL'               => $product_link,
+                        'Final Mobile URL'        => $product_link,
+                        'Image URL'               => $variation_image,
+                        'Item Title'              => $name,
+                        'Item Description'        => $description,
+                        'Item Category'           => $categories,
+                        'Price'                   => $variation_price,
+                        'Sale Price'              => $variation_sale_price,
                         'Google Product Category' => $google_product_category,
-                        'Is Bundle' => 'no',
-                        'MPN' => $sku,
-                        'Availability' => $availability,
-                        'Condition' => 'New',
-                        'Brand' => $brand,
+                        'Is Bundle'               => 'no',
+                        'MPN'                     => $sku,
+                        'Availability'            => $availability,
+                        'Condition'               => 'New',
+                        'Brand'                   => $brand,
                     );
                 }
             } else {
                 $sku = $product->get_sku();
                 $row = array(
-                    'ID' => $id,
-                    'ID2' => $sku,
-                    'Final URL' => $product_link,
-                    'Final Mobile URL' => $product_link,
-                    'Image URL' => $image_link,
-                    'Item Title' => $name,
-                    'Item Description' => $description,
-                    'Item Category' => $categories,
-                    'Price' => $regular_price,
-                    'Sale Price' => $sale_price,
+                    'ID'                      => $id,
+                    'ID2'                     => $sku,
+                    'Final URL'               => $product_link,
+                    'Final Mobile URL'        => $product_link,
+                    'Image URL'               => $image_link,
+                    'Item Title'              => $name,
+                    'Item Description'        => $description,
+                    'Item Category'           => $categories,
+                    'Price'                   => $regular_price,
+                    'Sale Price'              => $sale_price,
                     'Google Product Category' => $google_product_category,
-                    'Is Bundle' => 'no',
-                    'MPN' => $sku,
-                    'Availability' => $availability,
-                    'Condition' => 'New',
-                    'Brand' => $brand,
+                    'Is Bundle'               => 'no',
+                    'MPN'                     => $sku,
+                    'Availability'            => $availability,
+                    'Condition'               => 'New',
+                    'Brand'                   => $brand,
                 );
             }
     
@@ -452,11 +460,11 @@ if (!function_exists('smarty_regenerate_feed')) {
      */
 	function smarty_regenerate_feed() {
 		$products = wc_get_products(array(
-			'status' => 'publish',
-            'stock_status' => 'instock',
-			'limit' => -1,
-			'orderby' => 'date',
-			'order' => 'DESC',
+			'status'        => 'publish',
+            'stock_status'  => 'instock',
+			'limit'         => -1,
+			'orderby'       => 'date',
+			'order'         => 'DESC',
 		));
 
 		$xml = new SimpleXMLElement('<feed xmlns:g="http://base.google.com/ns/1.0"/>');
@@ -553,6 +561,7 @@ if (!function_exists('smarty_regenerate_feed')) {
 
                 // Additional Images
                 $gallery_ids = $product->get_gallery_image_ids();
+                
                 foreach ($gallery_ids as $gallery_id) {
                     $item->addChild('additional_image_link', wp_get_attachment_url($gallery_id), $gNamespace);
                 }
@@ -567,6 +576,7 @@ if (!function_exists('smarty_regenerate_feed')) {
     
                 // Product Type (Category)
                 $categories = wp_get_post_terms($product->get_id(), 'product_cat');
+                
                 if (!empty($categories) && !is_wp_error($categories)) {
                     $category_names = array_map(function($term) { return $term->name; }, $categories);
                     $item->addChild('product_type', htmlspecialchars(join(' > ', $category_names)), $gNamespace);
@@ -626,6 +636,7 @@ if (!function_exists('smarty_feed_generator_deactivate')) {
 
         // Clear scheduled feed regeneration event
         $timestamp = wp_next_scheduled('smarty_generate_google_feed_event');
+        
         if ($timestamp) {
             wp_unschedule_event($timestamp, 'smarty_generate_google_feed_event');
         }
@@ -648,10 +659,13 @@ if (!function_exists('smarty_convert_and_update_product_image')) {
      */
     function smarty_convert_and_update_product_image($product) {
         $image_id = $product->get_image_id();
+
         if ($image_id) {
             $file_path = get_attached_file($image_id);
+            
             if ($file_path && preg_match('/\.webp$/', $file_path)) {
                 $new_file_path = preg_replace('/\.webp$/', '.png', $file_path);
+                
                 if (smarty_convert_webp_to_png($file_path, $new_file_path)) {
                     // Update the attachment file type post meta
                     wp_update_attachment_metadata($image_id, wp_generate_attachment_metadata($image_id, $new_file_path));
@@ -687,6 +701,7 @@ if (!function_exists('smarty_convert_webp_to_png')) {
         }
 
         $image = imagecreatefromwebp($source);
+        
         if (!$image) return false;
 
         $result = imagepng($image, $destination);
