@@ -81,13 +81,25 @@ if (!function_exists('smarty_generate_google_feed')) {
         }
     
         if (class_exists('WooCommerce')) {
+            $uncategorized_term_id = get_term_by('slug', 'uncategorized', 'product_cat')->term_id;
+            $upsell_term_id = get_term_by('slug', 'upsell', 'product_cat')->term_id;
+            $checkout_upsell_term_id = get_term_by('slug', 'checkout-upsell', 'product_cat')->term_id;
+
             $args = array(
                 'status' => 'publish',
-                'stock_status' => 'instock', // Only in-stock products
-                'limit' => -1, // Consider performance and execution time limits
+                'stock_status' => 'instock',
+                'limit' => -1,
                 'orderby' => 'date',
                 'order' => 'DESC',
-                'type' => ['simple', 'variable'], // Include both simple and variable products
+                'type' => ['simple', 'variable'],
+                'tax_query' => array(
+                    array(
+                        'taxonomy' => 'product_cat',
+                        'field' => 'term_id',
+                        'terms' => [$uncategorized_term_id, $upsell_term_id, $checkout_upsell_term_id],
+                        'operator' => 'NOT IN',
+                    ),
+                ),
             );
     
             $products = wc_get_products($args);
@@ -244,19 +256,44 @@ if (!function_exists('smarty_generate_csv_export')) {
         );
     
         fputcsv($handle, $headers);
-    
+
+        $uncategorized_term_id = get_term_by('slug', 'uncategorized', 'product_cat')->term_id;
+        $upsell_term_id = get_term_by('slug', 'upsell', 'product_cat')->term_id;
+        $checkout_upsell_term_id = get_term_by('slug', 'checkout-upsell', 'product_cat')->term_id;
+
         $args = array(
             'status' => 'publish',
-            'stock_status' => 'instock', // Only in-stock products
+            'stock_status' => 'instock',
             'limit' => -1,
             'orderby' => 'date',
             'order' => 'DESC',
-            'type' => array('simple', 'variable'),
-            'return' => 'objects',
+            'type' => ['simple', 'variable'],
+            'tax_query' => array(
+                array(
+                    'taxonomy' => 'product_cat',
+                    'field' => 'term_id',
+                    'terms' => [$uncategorized_term_id, $upsell_term_id, $checkout_upsell_term_id],
+                    'operator' => 'NOT IN',
+                ),
+            ),
         );
     
         $products = wc_get_products($args);
-        $exclude_patterns = ['-fb', '-2', '-copy', '-digital-edition', '-plan', '-gift'];
+        $exclude_patterns = [
+            '-fb', 
+            '-2', 
+            '-copy', 
+            '-digital-edition', 
+            '-plan', 
+            '-gift', 
+            '-womens-month-sale-', 
+            'upsale-', 
+            'refreshed-', 
+            'nourished-',
+            'sheglow-',
+            '-band-',
+            '-black-up',
+        ]; // TODO: #1 Make plugin settings page and add this in "exclude field"
     
         foreach ($products as $product) {
             $product_link = get_permalink($product->get_id());
@@ -278,12 +315,12 @@ if (!function_exists('smarty_generate_csv_export')) {
             $image_link = $image_id ? wp_get_attachment_url($image_id) : '';
 
             // Fetch the custom field for the description
-            $meta_description = get_post_meta($id, 'veni-description', true);
+            $meta_description = get_post_meta($id, 'veni-description', true); // TODO: #3 Need to be change as logic and custom field name
             $description = !empty($meta_description) ? htmlspecialchars(strip_tags($meta_description)) : htmlspecialchars(strip_tags($product->get_short_description()));
             $description = preg_replace('/\s+/', ' ', $description);
             
             $availability = $product->is_in_stock() ? 'in stock' : 'out of stock';
-            $google_product_category = 'Health & Beauty, Health Care, Fitness & Nutrition, Vitamins & Supplements';
+            $google_product_category = 'Food, Beverages & Tobacco > Beverages > Tea & Infusions'; // TODO: #2 Make this to be set from the plugin settings page with dropdown/select field to set Google category
             $brand = get_bloginfo('name');
     
             if ($product->is_type('variable')) {
@@ -423,8 +460,8 @@ if (!function_exists('smarty_regenerate_feed')) {
 		));
 
 		$xml = new SimpleXMLElement('<feed xmlns:g="http://base.google.com/ns/1.0"/>');
-		// Add feed details and loop through products to add them to the feed...
-
+		
+        // Add feed details and loop through products to add them to the feed...
 		foreach ($products as $product) {
             if ($product->is_type('variable')) {
                 foreach ($product->get_children() as $child_id) {
