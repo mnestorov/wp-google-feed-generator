@@ -104,7 +104,7 @@ if (!function_exists('smarty_generate_google_feed')) {
             );
     
             $products = wc_get_products($args);
-            $xml = new SimpleXMLElement('<feed xmlns:g="http://base.google.com/ns/1.0"/>');
+            $xml = new SimpleXMLElement('<feed xmlns="http://www.w3.org/2005/Atom" xmlns:g="http://base.google.com/ns/1.0"/>');
     
             foreach ($products as $product) {
                 if ($product->is_type('variable')) {
@@ -314,7 +314,6 @@ if (!function_exists('smarty_generate_csv_export')) {
             }
     
             $id = $product->get_id();
-            $name = $product->get_name();
             $regular_price = $product->get_regular_price();
             $sale_price = $product->get_sale_price() ?: '';
             $categories = wp_get_post_terms($id, 'product_cat', array('fields' => 'names'));
@@ -322,8 +321,10 @@ if (!function_exists('smarty_generate_csv_export')) {
             $image_id = $product->get_image_id();
             $image_link = $image_id ? wp_get_attachment_url($image_id) : '';
 
-            // Fetch the custom field for the description
+            // Fetch the custom field for the title and description
+            $meta_title = get_post_meta($id, 'veni-title', true); // TODO: #3 Need to be change as logic and custom field name
             $meta_description = get_post_meta($id, 'veni-description', true); // TODO: #3 Need to be change as logic and custom field name
+            $name = !empty($meta_title) ? htmlspecialchars(strip_tags($meta_title)) : htmlspecialchars(strip_tags($product->get_name()));
             $description = !empty($meta_description) ? htmlspecialchars(strip_tags($meta_description)) : htmlspecialchars(strip_tags($product->get_short_description()));
             $description = preg_replace('/\s+/', ' ', $description);
             $availability = $product->is_in_stock() ? 'in stock' : 'out of stock';
