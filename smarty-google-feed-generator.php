@@ -190,6 +190,7 @@ if (!function_exists('smarty_generate_google_feed')) {
             exit;
         }
     }
+    add_action('smarty_generate_google_feed', 'smarty_generate_google_feed'); // the first one is event
 }
 
 if (!function_exists('smarty_generate_google_reviews_feed')) {
@@ -229,6 +230,7 @@ if (!function_exists('smarty_generate_google_reviews_feed')) {
         echo $xml->asXML();
         exit;
     }
+    add_action('smarty_generate_google_reviews_feed', 'smarty_generate_google_reviews_feed'); // the first is event
 }
 
 if (!function_exists('smarty_generate_csv_export')) {
@@ -612,15 +614,24 @@ if (!function_exists('smarty_feed_generator_activate')) {
      * Activation hook to flush rewrite rules and schedule feed regeneration on plugin activation.
      */
     function smarty_feed_generator_activate() {
+        if (!class_exists('WooCommerce')) {
+            wp_die('This plugin requires WooCommerce to be installed and active.');
+        }
+
         // Add rewrite rules
         smarty_feed_generator_add_rewrite_rules();
 
         // Flush rewrite rules to ensure custom endpoints are registered
         flush_rewrite_rules();
 
-        // Schedule the feed regeneration event if it's not already scheduled
-        if (!wp_next_scheduled('smarty_generate_google_feed_event')) {
-            wp_schedule_event(time(), 'twicedaily', 'smarty_generate_google_feed_event');
+        // Schedule Google Feed Event
+        if (!wp_next_scheduled('smarty_generate_google_feed')) {
+            wp_schedule_event(time(), 'twicedaily', 'smarty_generate_google_feed');
+        }
+
+        // Schedule Google Reviews Feed Event
+        if (!wp_next_scheduled('smarty_generate_google_reviews_feed_event')) {
+            wp_schedule_event(time(), 'daily', 'smarty_generate_google_reviews_feed');
         }
     }
     register_activation_hook(__FILE__, 'smarty_feed_generator_activate');
@@ -636,10 +647,15 @@ if (!function_exists('smarty_feed_generator_deactivate')) {
         flush_rewrite_rules();
 
         // Clear scheduled feed regeneration event
-        $timestamp = wp_next_scheduled('smarty_generate_google_feed_event');
-        
-        if ($timestamp) {
-            wp_unschedule_event($timestamp, 'smarty_generate_google_feed_event');
+        $google_feed_timestamp = wp_next_scheduled('smarty_generate_google_feed');
+        if ($google_feed_timestamp) {
+            wp_unschedule_event($google_feed_timestamp, 'smarty_generate_google_feed');
+        }
+
+        // Unscheduling the reviews feed event
+        $review_feed_timestamp = wp_next_scheduled('smarty_generate_google_reviews_feed_event');
+        if ($review_feed_timestamp) {
+            wp_unschedule_event($review_feed_timestamp, 'smarty_generate_google_reviews_feed_event');
         }
 
         // Path to the generated XML file
