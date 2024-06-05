@@ -391,7 +391,7 @@ if (!function_exists('smarty_generate_csv_export')) {
             $google_product_category = 'Food, Beverages & Tobacco > Beverages > Tea & Infusions'; // TODO: #2 Make this to be set from the plugin settings page with dropdown/select field to set Google category
             */
 
-            $google_product_category = get_option('smarty_google_product_category'); // Get Google category from plugin settings
+            $google_product_category = smarty_get_cleaned_google_product_category(); // Get Google category from plugin settings
             $brand = get_bloginfo('name');
             
             // Check for variable type to handle variations
@@ -798,9 +798,9 @@ if (!function_exists('smarty_convert_webp_to_png')) {
 
 if (!function_exists('smarty_get_google_product_categories')) {
     /**
-     * Get Google product categories from the taxonomy file.
+     * Fetch Google product categories from the taxonomy file and return them as an associative array with IDs.
      * 
-     * @return array
+     * @return array Associative array of category IDs and names.
      */
     function smarty_get_google_product_categories() {
         // Check if the categories are already cached
@@ -922,3 +922,21 @@ if (!function_exists('smarty_feed_generator_settings_page_html')) {
     }
 }
 
+if (!function_exists('smarty_get_cleaned_google_product_category')) {
+    function smarty_get_cleaned_google_product_category() {
+        // Get the option value
+        $category = get_option('smarty_google_product_category');
+
+        // Split the string by the '-' character
+        $parts = explode('-', $category);
+
+        // Check if the result has the expected parts
+        if (count($parts) == 2) {
+            // Trim any whitespace from the second part and return it
+            return trim($parts[1]);
+        }
+
+        // If the string doesn't contain a '-', return the original value or handle as needed
+        return $category;
+    }
+}

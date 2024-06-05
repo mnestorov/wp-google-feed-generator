@@ -20,6 +20,7 @@
 - **Feed Caching:** Utilizes WordPress transients for caching feeds, improving response times and reducing server load for feed generation.
 - **Scheduled Regeneration:** Leverages WP-Cron for scheduled feed updates, ensuring your feeds remain up-to-date without manual intervention.
 - **Easy Activation and Deactivation:** Ensures a smooth setup and cleanup process through activation and deactivation hooks, managing rewrite rules and scheduled events accordingly.
+- **Google Product Category Cleaning:** Automatically cleans the Google product category string, removing any leading numbers and hyphens for better compatibility.
 
 ## Installation
 
