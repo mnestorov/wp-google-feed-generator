@@ -630,7 +630,7 @@ if (!function_exists('smarty_feed_generator_activate')) {
         }
 
         // Schedule Google Reviews Feed Event
-        if (!wp_next_scheduled('smarty_generate_google_reviews_feed_event')) {
+        if (!wp_next_scheduled('smarty_generate_google_reviews_feed')) {
             wp_schedule_event(time(), 'daily', 'smarty_generate_google_reviews_feed');
         }
     }
@@ -653,9 +653,9 @@ if (!function_exists('smarty_feed_generator_deactivate')) {
         }
 
         // Unscheduling the reviews feed event
-        $review_feed_timestamp = wp_next_scheduled('smarty_generate_google_reviews_feed_event');
+        $review_feed_timestamp = wp_next_scheduled('smarty_generate_google_reviews_feed');
         if ($review_feed_timestamp) {
-            wp_unschedule_event($review_feed_timestamp, 'smarty_generate_google_reviews_feed_event');
+            wp_unschedule_event($review_feed_timestamp, 'smarty_generate_google_reviews_feed');
         }
 
         // Path to the generated XML file
