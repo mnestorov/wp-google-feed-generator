@@ -1,13 +1,14 @@
 <?php
 /**
  * Plugin Name: SM - Google Feed Generator for WooCommerce
- * Plugin URI:  https://smartystudio.net/google-feed-generator
+ * Plugin URI:  https://smartystudio.net/smarty-google-feed-generator
  * Description: Generates google product and product review feeds for Google Merchant Center.
  * Version:     1.0.0
  * Author:      Smarty Studio | Martin Nestorov
  * Author URI:  https://smartystudio.net
  * License:     GPL-2.0+
  * License URI: http://www.gnu.org/licenses/gpl-2.0.txt
+ * Text Domain: smarty-google-feed-generator
  */
 
 // If this file is called directly, abort.
@@ -333,6 +334,11 @@ if (!function_exists('smarty_generate_csv_export')) {
         // Retrieve products using the defined arguments
         $products = wc_get_products($args);
 
+        // Get exclude patterns from settings and split into array
+        $exclude_patterns = preg_split('/\r\n|\r|\n/', get_option('smarty_exclude_patterns'));
+
+        /*
+        // Deprecated
         // Define patterns to exclude specific products based on their URL
         $exclude_patterns = [
             '-fb', 
@@ -349,6 +355,7 @@ if (!function_exists('smarty_generate_csv_export')) {
             '-band-',
             '-black-up',
         ]; // TODO: #1 Make plugin settings page and add this in "exclude field"
+        */
         
         // Iterate through each product
         foreach ($products as $product) {
@@ -378,7 +385,13 @@ if (!function_exists('smarty_generate_csv_export')) {
             $description = !empty($meta_description) ? htmlspecialchars(strip_tags($meta_description)) : htmlspecialchars(strip_tags($product->get_short_description()));
             $description = preg_replace('/\s+/', ' ', $description); // Normalize whitespace in descriptions
             $availability = $product->is_in_stock() ? 'in stock' : 'out of stock';
+            
+            /*
+            // Deprecated
             $google_product_category = 'Food, Beverages & Tobacco > Beverages > Tea & Infusions'; // TODO: #2 Make this to be set from the plugin settings page with dropdown/select field to set Google category
+            */
+
+            $google_product_category = get_option('smarty_google_product_category'); // Get Google category from plugin settings
             $brand = get_bloginfo('name');
             
             // Check for variable type to handle variations
@@ -782,3 +795,130 @@ if (!function_exists('smarty_convert_webp_to_png')) {
     }
     add_action('woocommerce_admin_process_product_object', 'smarty_convert_and_update_product_image', 10, 1);
 }
+
+if (!function_exists('smarty_get_google_product_categories')) {
+    /**
+     * Get Google product categories from the taxonomy file.
+     * 
+     * @return array
+     */
+    function smarty_get_google_product_categories() {
+        // Check if the categories are already cached
+        $categories = get_transient('smarty_google_product_categories');
+        
+        if ($categories === false) {
+            // URL of the Google taxonomy file
+            $taxonomy_url = 'https://www.google.com/basepages/producttype/taxonomy-with-ids.en-US.txt';
+            
+            // Download the file
+            $response = wp_remote_get($taxonomy_url);
+            
+            if (is_wp_error($response)) {
+                return [];
+            }
+
+            $body = wp_remote_retrieve_body($response);
+            
+            // Parse the file
+            $lines = explode("\n", $body);
+            $categories = [];
+
+            foreach ($lines as $line) {
+                if (!empty($line) && strpos($line, '#') !== 0) {
+                    $categories[] = trim($line);
+                }
+            }
+
+            // Cache the categories for 12 hours
+            set_transient('smarty_google_product_categories', $categories, 12 * HOUR_IN_SECONDS);
+        }
+        
+        return $categories;
+    }
+}
+
+if (!function_exists('smarty_feed_generator_add_settings_page')) {
+    /**
+     * Add settings page to the WordPress admin menu.
+     */
+    function smarty_feed_generator_add_settings_page() {
+        add_options_page(
+            'Google Feed Generator | Settings',         // Page title
+            'Google Feed Generator',                    // Menu title
+            'manage_options',                           // Capability required to access this page
+            'smarty-feed-generator-settings',           // Menu slug
+            'smarty_feed_generator_settings_page_html'  // Callback function to display the page content
+        );
+    }
+    add_action('admin_menu', 'smarty_feed_generator_add_settings_page');
+}
+
+if (!function_exists('smarty_feed_generator_register_settings')) {
+    /**
+     * Register plugin settings.
+     */
+    function smarty_feed_generator_register_settings() {
+        register_setting('smarty_feed_generator_settings', 'smarty_google_product_category');
+        register_setting('smarty_feed_generator_settings', 'smarty_exclude_patterns');
+    }
+    add_action('admin_init', 'smarty_feed_generator_register_settings');
+}
+
+if (!function_exists('smarty_feed_generator_settings_page_html')) {
+    /**
+     * Settings page HTML.
+     */
+    function smarty_feed_generator_settings_page_html() {
+        // Check user capabilities
+        if (!current_user_can('manage_options')) {
+            return;
+        }
+
+        // Get Google product categories
+        $google_categories = smarty_get_google_product_categories();
+
+        // Settings HTML
+        ?>
+        <div class="wrap">
+            <h1><?php esc_html_e('Google Feed Generator | Settings', 'smarty-google-feed-generator'); ?></h1>
+            <form action="options.php" method="post">
+                <?php
+                settings_fields('smarty_feed_generator_settings');
+                do_settings_sections('smarty_feed_generator_settings');
+                ?>
+                <table class="form-table" role="presentation">
+                    <tbody>
+                        <tr>
+                            <th scope="row">
+                                <label for="smarty_google_product_category"><?php esc_html_e('Google Product Category', 'smarty-google-feed-generator'); ?></label>
+                            </th>
+                            <td>
+                                <select name="smarty_google_product_category" id="smarty_google_product_category">
+                                    <?php foreach ($google_categories as $category): ?>
+                                        <option value="<?php echo esc_attr($category); ?>" <?php selected(get_option('smarty_google_product_category'), $category); ?>>
+                                            <?php echo esc_html($category); ?>
+                                        </option>
+                                    <?php endforeach; ?>
+                                </select>
+                            </td>
+                        </tr>
+                        <tr>
+                            <th scope="row">
+                                <label for="smarty_exclude_patterns"><?php esc_html_e('Exclude Patterns', 'smarty-google-feed-generator'); ?></label>
+                            </th>
+                            <td>
+                                <textarea name="smarty_exclude_patterns" id="smarty_exclude_patterns" rows="10" cols="50" class="large-text"><?php echo esc_textarea(get_option('smarty_exclude_patterns')); ?></textarea>
+                                <p class="description"><?php esc_html_e('Enter patterns to exclude from the CSV feed, one per line.', 'smarty-google-feed-generator'); ?></p>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+                <?php
+                submit_button(__('Save Settings', 'smarty-google-feed-generator'));
+                ?>
+            </form>
+        </div>
+        <?php
+    }
+}
+
