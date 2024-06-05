@@ -336,26 +336,6 @@ if (!function_exists('smarty_generate_csv_export')) {
 
         // Get exclude patterns from settings and split into array
         $exclude_patterns = preg_split('/\r\n|\r|\n/', get_option('smarty_exclude_patterns'));
-
-        /*
-        // Deprecated
-        // Define patterns to exclude specific products based on their URL
-        $exclude_patterns = [
-            '-fb', 
-            '-2', 
-            '-copy', 
-            '-digital-edition', 
-            '-plan', 
-            '-gift', 
-            '-womens-month-sale-', 
-            'upsale-', 
-            'refreshed-', 
-            'nourished-',
-            'sheglow-',
-            '-band-',
-            '-black-up',
-        ]; // TODO: #1 Make plugin settings page and add this in "exclude field"
-        */
         
         // Iterate through each product
         foreach ($products as $product) {
@@ -386,11 +366,6 @@ if (!function_exists('smarty_generate_csv_export')) {
             $description = preg_replace('/\s+/', ' ', $description); // Normalize whitespace in descriptions
             $availability = $product->is_in_stock() ? 'in stock' : 'out of stock';
             
-            /*
-            // Deprecated
-            $google_product_category = 'Food, Beverages & Tobacco > Beverages > Tea & Infusions'; // TODO: #2 Make this to be set from the plugin settings page with dropdown/select field to set Google category
-            */
-
             $google_product_category = smarty_get_cleaned_google_product_category(); // Get Google category from plugin settings
             $brand = get_bloginfo('name');
             
