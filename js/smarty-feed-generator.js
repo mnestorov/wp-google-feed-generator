@@ -1,4 +1,24 @@
 jQuery(document).ready(function($) {
+    $('.smarty-convert-images-button').on('click', function() {
+        var nonce = smartyFeedGenerator.nonce;
+
+        $.ajax({
+            url: smartyFeedGenerator.ajaxUrl,
+            type: 'POST',
+            data: {
+                action: 'smarty_convert_images',
+                nonce: nonce
+            },
+            success: function(response) {
+                if (response.success) {
+                    alert(response.data);
+                } else {
+                    alert('Error: ' + response.data);
+                }
+            }
+        });
+    });
+    
     $('.smarty-generate-feed-button').on('click', function(e) {
         e.preventDefault();
 

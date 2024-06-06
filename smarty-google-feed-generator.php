@@ -90,9 +90,13 @@ if (!function_exists('smarty_generate_google_feed')) {
         // Check if WooCommerce is active before proceeding
         if (class_exists('WooCommerce')) {
             // Define category IDs that should be excluded from the feed
-            $uncategorized_term_id = get_term_by('slug', 'uncategorized', 'product_cat')->term_id;
-            $upsell_term_id = get_term_by('slug', 'upsell', 'product_cat')->term_id;
-            $checkout_upsell_term_id = get_term_by('slug', 'checkout-upsell', 'product_cat')->term_id;
+            $uncategorized_term = get_term_by('slug', 'uncategorized', 'product_cat');
+            $upsell_term = get_term_by('slug', 'upsell', 'product_cat');
+            $checkout_upsell_term = get_term_by('slug', 'checkout-upsell', 'product_cat');
+
+            $uncategorized_term_id = $uncategorized_term ? $uncategorized_term->term_id : 0;
+            $upsell_term_id = $upsell_term ? $upsell_term->term_id : 0;
+            $checkout_upsell_term_id = $checkout_upsell_term ? $checkout_upsell_term->term_id : 0;
 
             // Set up arguments for querying products, excluding certain categories
             $args = array(
@@ -317,9 +321,13 @@ if (!function_exists('smarty_generate_csv_export')) {
         fputcsv($handle, $headers);
 
         // Define category IDs that should be excluded from the feed
-        $uncategorized_term_id = get_term_by('slug', 'uncategorized', 'product_cat')->term_id;
-        $upsell_term_id = get_term_by('slug', 'upsell', 'product_cat')->term_id;
-        $checkout_upsell_term_id = get_term_by('slug', 'checkout-upsell', 'product_cat')->term_id;
+        $uncategorized_term = get_term_by('slug', 'uncategorized', 'product_cat');
+        $upsell_term = get_term_by('slug', 'upsell', 'product_cat');
+        $checkout_upsell_term = get_term_by('slug', 'checkout-upsell', 'product_cat');
+
+        $uncategorized_term_id = $uncategorized_term ? $uncategorized_term->term_id : 0;
+        $upsell_term_id = $upsell_term ? $upsell_term->term_id : 0;
+        $checkout_upsell_term_id = $checkout_upsell_term ? $checkout_upsell_term->term_id : 0;
 
         // Prepare arguments for querying products excluding specific categories
         $args = array(
@@ -361,6 +369,28 @@ if (!function_exists('smarty_generate_csv_export')) {
                 }
             }
             
+            // Convert the first WebP image to PNG if needed
+            $image_id = $product->get_image_id();
+            $image_url = wp_get_attachment_url($image_id);
+            $file_path = get_attached_file($image_id);
+
+            if ($file_path && preg_match('/\.webp$/', $file_path)) {
+                $new_file_path = preg_replace('/\.webp$/', '.png', $file_path);
+                if (smarty_convert_webp_to_png($file_path, $new_file_path)) {
+                    // Update the attachment file type post meta
+                    wp_update_attachment_metadata($image_id, wp_generate_attachment_metadata($image_id, $new_file_path));
+                    update_post_meta($image_id, '_wp_attached_file', $new_file_path);
+                    // Regenerate thumbnails
+                    if (function_exists('wp_update_attachment_metadata')) {
+                        wp_update_attachment_metadata($image_id, wp_generate_attachment_metadata($image_id, $new_file_path));
+                    }
+                    // Update image URL
+                    $image_url = wp_get_attachment_url($image_id);
+                    // Optionally, delete the original WEBP file
+                    @unlink($file_path);
+                }
+            }
+
             // Prepare product data for the CSV
             $id = $product->get_id();
             $regular_price = $product->get_regular_price();
@@ -860,6 +890,22 @@ if (!function_exists('smarty_feed_generator_register_settings')) {
             'smarty_feed_generator_settings'                                // Page on which to add the section
         );
 
+        // Add Convert Images section
+        add_settings_section(
+            'smarty_gfg_section_convert_images',                            // ID of the section
+            __('Convert Images', 'smarty-google-feed-generator'),           // Title of the section
+            'smarty_gfg_section_convert_images_callback',                   // Callback function that fills the section with the desired content
+            'smarty_feed_generator_settings'                                // Page on which to add the section
+        );
+
+        // Add Generate Feeds section
+        add_settings_section(
+            'smarty_gfg_section_generate_feeds',                            // ID of the section
+            __('Generate Feeds', 'smarty-google-feed-generator'),           // Title of the section
+            'smarty_gfg_section_generate_feeds_callback',                   // Callback function that fills the section with the desired content
+            'smarty_feed_generator_settings'                                // Page on which to add the section
+        );
+
         // Add Settings section
         add_settings_section(
             'smarty_gfg_section_settings',                                  // ID of the section
@@ -886,11 +932,19 @@ if (!function_exists('smarty_feed_generator_register_settings')) {
         );
 
         add_settings_field(
+            'smarty_convert_images',
+            __('Convert', 'smarty-google-feed-generator'),
+            'smarty_convert_images_button_callback',
+            'smarty_feed_generator_settings',
+            'smarty_gfg_section_convert_images'
+        );
+
+        add_settings_field(
             'smarty_generate_feed_now',
-            __('Generate Feeds', 'smarty-google-feed-generator'),
+            __('Generate', 'smarty-google-feed-generator'),
             'smarty_generate_feed_buttons_callback',
             'smarty_feed_generator_settings',
-            'smarty_gfg_section_general'
+            'smarty_gfg_section_generate_feeds'
         );
 
         // Add settings field to Cache section
@@ -920,6 +974,18 @@ if (!function_exists('smarty_gfg_section_general_callback')) {
     }
 }
 
+if (!function_exists('smarty_gfg_section_convert_images_callback')) {
+    function smarty_gfg_section_convert_images_callback() {
+        echo '<p>' . __('Use the button below to manually convert the first WebP image of each products in to the feed to PNG.', 'smarty-google-feed-generator') . '</p>';
+    }
+}
+
+if (!function_exists('smarty_gfg_section_generate_feeds_callback')) {
+    function smarty_gfg_section_generate_feeds_callback() {
+        echo '<p>' . __('Use the buttons below to manually generate the feeds.', 'smarty-google-feed-generator') . '</p>';
+    }
+}
+
 if (!function_exists('smarty_gfg_section_settings_callback')) {
     function smarty_gfg_section_settings_callback() {
         echo '<p>' . __('Cache settings for the Google Feed Generator.', 'smarty-google-feed-generator') . '</p>';
@@ -946,9 +1012,14 @@ if (!function_exists('smarty_exclude_patterns_callback')) {
     }
 }
 
+if (!function_exists('smarty_convert_images_button_callback')) {
+    function smarty_convert_images_button_callback() {
+        echo '<button class="button secondary smarty-convert-images-button" style="display: inline-block; margin-bottom: 10px;">' . __('Convert First WebP Image to PNG', 'smarty-google-feed-generator') . '</button>';
+    }
+}
+
 if (!function_exists('smarty_generate_feed_buttons_callback')) {
     function smarty_generate_feed_buttons_callback() {
-        echo '<p>' . __('Use the buttons below to manually generate the feeds.', 'smarty-google-feed-generator') . '</p>';
         echo '<button class="button secondary smarty-generate-feed-button" data-feed-action="generate_product_feed" style="display: inline-block;">' . __('Generate Product Feed', 'smarty-google-feed-generator') . '</button>';
         echo '<button class="button secondary smarty-generate-feed-button" data-feed-action="generate_reviews_feed" style="display: inline-block; margin: 0 10px;">' . __('Generate Reviews Feed', 'smarty-google-feed-generator') . '</button>';
         echo '<button class="button secondary smarty-generate-feed-button" data-feed-action="generate_csv_export" style="display: inline-block; margin-right: 10px;">' . __('Generate CSV Export', 'smarty-google-feed-generator') . '</button>';
@@ -991,6 +1062,56 @@ if (!function_exists('smarty_feed_generator_enqueue_scripts')) {
         );
     }
     add_action('admin_enqueue_scripts', 'smarty_feed_generator_enqueue_scripts');
+}
+
+if (!function_exists('smarty_handle_ajax_convert_images')) {
+    function smarty_handle_ajax_convert_images() {
+        check_ajax_referer('smarty_feed_generator_nonce', 'nonce');
+
+        if (!current_user_can('manage_options')) {
+            wp_send_json_error('You do not have sufficient permissions to access this page.');
+        }
+
+        smarty_convert_first_webp_image_to_png();
+
+        wp_send_json_success(__('The first WebP image of each product has been converted to PNG.', 'smarty-google-feed-generator'));
+    }
+    add_action('wp_ajax_smarty_convert_images', 'smarty_handle_ajax_convert_images');
+}
+
+if (!function_exists('smarty_convert_first_webp_image_to_png')) {
+    /**
+     * Convert the first WebP image of each product to PNG.
+     */
+    function smarty_convert_first_webp_image_to_png() {
+        $products = wc_get_products(array(
+            'status' => 'publish',
+            'limit'  => -1,
+        ));
+
+        foreach ($products as $product) {
+            $image_id = $product->get_image_id();
+            $file_path = get_attached_file($image_id);
+
+            if ($file_path && preg_match('/\.webp$/', $file_path)) {
+                $new_file_path = preg_replace('/\.webp$/', '.png', $file_path);
+
+                if (smarty_convert_webp_to_png($file_path, $new_file_path)) {
+                    // Update the attachment file type post meta
+                    wp_update_attachment_metadata($image_id, wp_generate_attachment_metadata($image_id, $new_file_path));
+                    update_post_meta($image_id, '_wp_attached_file', $new_file_path);
+
+                    // Regenerate thumbnails
+                    if (function_exists('wp_update_attachment_metadata')) {
+                        wp_update_attachment_metadata($image_id, wp_generate_attachment_metadata($image_id, $new_file_path));
+                    }
+
+                    // Optionally, delete the original WEBP file
+                    @unlink($file_path);
+                }
+            }
+        }
+    }
 }
 
 if (!function_exists('smarty_handle_ajax_generate_feed')) {
