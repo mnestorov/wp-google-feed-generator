@@ -196,7 +196,9 @@ if (!function_exists('smarty_generate_google_feed')) {
     
             // Save and output the XML
             $feed_content = $xml->asXML();
-            set_transient('smarty_google_feed', $feed_content, 12 * HOUR_IN_SECONDS);
+            $feed_content = $xml->asXML();
+            $cache_duration = get_option('smarty_cache_duration', 12); // Default to 12 hours if not set
+            set_transient('smarty_google_feed', $feed_content, $cache_duration * HOUR_IN_SECONDS);
             
             if ($output) {
                 echo $feed_content;
@@ -759,6 +761,7 @@ if (!function_exists('smarty_convert_and_update_product_image')) {
 if (!function_exists('smarty_convert_webp_to_png')) {
     /**
      * Converts a WEBP image file to PNG.
+     * 
      * @param string $source The source file path.
      * @param string $destination The destination file path.
      * @return bool True on success, false on failure.
@@ -847,6 +850,7 @@ if (!function_exists('smarty_feed_generator_register_settings')) {
         register_setting('smarty_feed_generator_settings', 'smarty_google_product_category');
         register_setting('smarty_feed_generator_settings', 'smarty_exclude_patterns');
         register_setting('smarty_feed_generator_settings', 'smarty_clear_cache');
+        register_setting('smarty_feed_generator_settings', 'smarty_cache_duration');
 
         // Add General section
         add_settings_section(
@@ -894,6 +898,15 @@ if (!function_exists('smarty_feed_generator_register_settings')) {
             'smarty_clear_cache',
             __('Clear Cache', 'smarty-google-feed-generator'),
             'smarty_clear_cache_callback',
+            'smarty_feed_generator_settings',
+            'smarty_gfg_section_settings'
+        );
+
+        // Add settings field for cache duration
+        add_settings_field(
+            'smarty_cache_duration',
+            __('Cache Duration (hours)', 'smarty-google-feed-generator'),
+            'smarty_cache_duration_callback',
             'smarty_feed_generator_settings',
             'smarty_gfg_section_settings'
         );
@@ -947,6 +960,14 @@ if (!function_exists('smarty_clear_cache_callback')) {
         $option = get_option('smarty_clear_cache');
         echo '<input type="checkbox" name="smarty_clear_cache" value="1" ' . checked(1, $option, false) . ' />';
         echo '<p class="description">' . __('Check to clear the cache each time the feed is generated. <br><b>Important:</b> Remove this in production to utilize caching', 'smarty-google-feed-generator') . '</p>';
+    }
+}
+
+if (!function_exists('smarty_cache_duration_callback')) {
+    function smarty_cache_duration_callback() {
+        $option = get_option('smarty_cache_duration', 12); // Default to 12 hours if not set
+        echo '<input type="number" name="smarty_cache_duration" value="' . esc_attr($option) . '" />';
+        echo '<p class="description">' . __('Set the cache duration in hours.', 'smarty-google-feed-generator') . '</p>';
     }
 }
 
