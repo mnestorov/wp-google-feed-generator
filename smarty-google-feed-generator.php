@@ -1049,7 +1049,7 @@ if (!function_exists('smarty_excluded_categories_callback')) {
             'hide_empty' => false,
         ));
 
-        echo '<select name="smarty_excluded_categories[]" multiple="multiple" style="width: 100%;">';
+        echo '<select name="smarty_excluded_categories[]" multiple="multiple" class="smarty-excluded-categories">';
         foreach ($categories as $category) {
             echo '<option value="' . esc_attr($category->term_id) . '" ' . (in_array($category->term_id, (array)$option) ? 'selected' : '') . '>' . esc_html($category->name) . '</option>';
         }

@@ -52,7 +52,7 @@ jQuery(document).ready(function($) {
         window.open(redirectUrl, '_blank');
     });
 
-    $('select[name="smarty_excluded_categories[]"]').select2({
-        width: '100%'
+    $('.smarty-excluded-categories').select2({
+        width: '100%' // need to override the changed default
     });
 });
