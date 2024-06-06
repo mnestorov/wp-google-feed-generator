@@ -18,7 +18,7 @@ jQuery(document).ready(function($) {
             }
         });
     });
-    
+
     $('.smarty-generate-feed-button').on('click', function(e) {
         e.preventDefault();
 
@@ -41,5 +41,9 @@ jQuery(document).ready(function($) {
         }
 
         window.open(redirectUrl, '_blank');
+    });
+
+    $('select[name="smarty_excluded_categories[]"]').select2({
+        width: '100%'
     });
 });

@@ -16,6 +16,15 @@ if (!defined('WPINC')) {
 	die;
 }
 
+if (!function_exists('smarty_enqueue_admin_scripts')) {
+    function smarty_enqueue_admin_scripts() {
+        wp_enqueue_script('select2', 'https://cdn.jsdelivr.net/npm/select2@4.0.13/dist/js/select2.min.js', array('jquery'), '4.0.13', true);
+        wp_enqueue_style('select2', 'https://cdn.jsdelivr.net/npm/select2@4.0.13/dist/css/select2.min.css', array(), '4.0.13');
+        wp_enqueue_script('smarty-admin-js', plugin_dir_url(__FILE__) . 'js/smarty-admin.js', array('jquery', 'select2'), '1.0.0', true);
+    }
+    add_action('admin_enqueue_scripts', 'smarty_enqueue_admin_scripts');
+}
+
 if (!function_exists('smarty_feed_generator_add_rewrite_rules')) {
     /**
      * Add rewrite rules for custom endpoints.
@@ -89,6 +98,10 @@ if (!function_exists('smarty_generate_google_feed')) {
     
         // Check if WooCommerce is active before proceeding
         if (class_exists('WooCommerce')) {
+            // Get excluded categories from settings
+            $excluded_categories = get_option('smarty_excluded_categories', array());
+
+            /* DEPRECATED
             // Define category IDs that should be excluded from the feed
             $uncategorized_term = get_term_by('slug', 'uncategorized', 'product_cat');
             $upsell_term = get_term_by('slug', 'upsell', 'product_cat');
@@ -97,6 +110,7 @@ if (!function_exists('smarty_generate_google_feed')) {
             $uncategorized_term_id = $uncategorized_term ? $uncategorized_term->term_id : 0;
             $upsell_term_id = $upsell_term ? $upsell_term->term_id : 0;
             $checkout_upsell_term_id = $checkout_upsell_term ? $checkout_upsell_term->term_id : 0;
+            */
 
             // Set up arguments for querying products, excluding certain categories
             $args = array(
@@ -110,11 +124,7 @@ if (!function_exists('smarty_generate_google_feed')) {
                     array(
                         'taxonomy' => 'product_cat',
                         'field'    => 'term_id',
-                        'terms'    => [
-                            $uncategorized_term_id, 
-                            $upsell_term_id, 
-                            $checkout_upsell_term_id
-                        ],
+                        'terms'    => $excluded_categories, // DEPRECATED: [$uncategorized_term_id, $upsell_term_id, $checkout_upsell_term_id],
                         'operator' => 'NOT IN',
                     ),
                 ),
@@ -320,6 +330,10 @@ if (!function_exists('smarty_generate_csv_export')) {
         // Write the header row to the CSV file
         fputcsv($handle, $headers);
 
+        // Get excluded categories from settings
+        $excluded_categories = get_option('smarty_excluded_categories', array());
+
+        /* DEPRECATED
         // Define category IDs that should be excluded from the feed
         $uncategorized_term = get_term_by('slug', 'uncategorized', 'product_cat');
         $upsell_term = get_term_by('slug', 'upsell', 'product_cat');
@@ -328,6 +342,7 @@ if (!function_exists('smarty_generate_csv_export')) {
         $uncategorized_term_id = $uncategorized_term ? $uncategorized_term->term_id : 0;
         $upsell_term_id = $upsell_term ? $upsell_term->term_id : 0;
         $checkout_upsell_term_id = $checkout_upsell_term ? $checkout_upsell_term->term_id : 0;
+        */
 
         // Prepare arguments for querying products excluding specific categories
         $args = array(
@@ -341,11 +356,7 @@ if (!function_exists('smarty_generate_csv_export')) {
                 array(
                     'taxonomy'  => 'product_cat',
                     'field'     => 'term_id',
-                    'terms'     => [
-                        $uncategorized_term_id, 
-                        $upsell_term_id, 
-                        $checkout_upsell_term_id
-                    ],
+                    'terms'     => $excluded_categories, // DEPRECATED: [$uncategorized_term_id, $upsell_term_id, $checkout_upsell_term_id],
                     'operator'  => 'NOT IN',            // Exclude products from these categories
                 ),
             ),
@@ -879,6 +890,7 @@ if (!function_exists('smarty_feed_generator_register_settings')) {
         // Register settings
         register_setting('smarty_feed_generator_settings', 'smarty_google_product_category');
         register_setting('smarty_feed_generator_settings', 'smarty_exclude_patterns');
+        register_setting('smarty_feed_generator_settings', 'smarty_excluded_categories');
         register_setting('smarty_feed_generator_settings', 'smarty_clear_cache');
         register_setting('smarty_feed_generator_settings', 'smarty_cache_duration');
 
@@ -924,45 +936,53 @@ if (!function_exists('smarty_feed_generator_register_settings')) {
         );
 
         add_settings_field(
-            'smarty_exclude_patterns',
-            __('Exclude Patterns', 'smarty-google-feed-generator'),
-            'smarty_exclude_patterns_callback',
-            'smarty_feed_generator_settings',
-            'smarty_gfg_section_general'
+            'smarty_exclude_patterns',                                      // ID of the field
+            __('Exclude Patterns', 'smarty-google-feed-generator'),         // Title of the field
+            'smarty_exclude_patterns_callback',                             // Callback function to display the field
+            'smarty_feed_generator_settings',                               // Page on which to add the field
+            'smarty_gfg_section_general'                                    // Section to which this field belongs
         );
 
         add_settings_field(
-            'smarty_convert_images',
-            __('Convert', 'smarty-google-feed-generator'),
-            'smarty_convert_images_button_callback',
-            'smarty_feed_generator_settings',
-            'smarty_gfg_section_convert_images'
+            'smarty_excluded_categories',                                   // ID of the field
+            __('Excluded Categories', 'smarty-google-feed-generator'),      // Title of the field
+            'smarty_excluded_categories_callback',                          // Callback function to display the field
+            'smarty_feed_generator_settings',                               // Page on which to add the field
+            'smarty_gfg_section_general'                                    // Section to which this field belongs
         );
 
         add_settings_field(
-            'smarty_generate_feed_now',
-            __('Generate', 'smarty-google-feed-generator'),
-            'smarty_generate_feed_buttons_callback',
-            'smarty_feed_generator_settings',
-            'smarty_gfg_section_generate_feeds'
+            'smarty_convert_images',                                        // ID of the field
+            __('Convert', 'smarty-google-feed-generator'),                  // Title of the field
+            'smarty_convert_images_button_callback',                        // Callback function to display the field
+            'smarty_feed_generator_settings',                               // Page on which to add the field
+            'smarty_gfg_section_convert_images'                             // Section to which this field belongs
+        );
+
+        add_settings_field(
+            'smarty_generate_feed_now',                                     // ID of the field
+            __('Generate', 'smarty-google-feed-generator'),                 // Title of the field
+            'smarty_generate_feed_buttons_callback',                        // Callback function to display the field
+            'smarty_feed_generator_settings',                               // Page on which to add the field
+            'smarty_gfg_section_generate_feeds'                             // Section to which this field belongs
         );
 
         // Add settings field to Cache section
         add_settings_field(
-            'smarty_clear_cache',
-            __('Clear Cache', 'smarty-google-feed-generator'),
-            'smarty_clear_cache_callback',
-            'smarty_feed_generator_settings',
-            'smarty_gfg_section_settings'
+            'smarty_clear_cache',                                           // ID of the field
+            __('Clear Cache', 'smarty-google-feed-generator'),              // Title of the field
+            'smarty_clear_cache_callback',                                  // Callback function to display the field
+            'smarty_feed_generator_settings',                               // Page on which to add the field
+            'smarty_gfg_section_settings'                                   // Section to which this field belongs
         );
 
         // Add settings field for cache duration
         add_settings_field(
-            'smarty_cache_duration',
-            __('Cache Duration (hours)', 'smarty-google-feed-generator'),
-            'smarty_cache_duration_callback',
-            'smarty_feed_generator_settings',
-            'smarty_gfg_section_settings'
+            'smarty_cache_duration',                                        // ID of the field
+            __('Cache Duration (hours)', 'smarty-google-feed-generator'),   // Title of the field
+            'smarty_cache_duration_callback',                               // Callback function to display the field
+            'smarty_feed_generator_settings',                               // Page on which to add the field
+            'smarty_gfg_section_settings'                                   // Section to which this field belongs
         );
     }
     add_action('admin_init', 'smarty_feed_generator_register_settings');
@@ -1009,6 +1029,26 @@ if (!function_exists('smarty_exclude_patterns_callback')) {
         $option = get_option('smarty_exclude_patterns');
         echo '<textarea name="smarty_exclude_patterns" rows="10" cols="50" class="large-text">' . esc_textarea($option) . '</textarea>';
         echo '<p class="description">' . __('Enter patterns to exclude from the CSV feed, one per line.', 'smarty-google-feed-generator') . '</p>';
+    }
+}
+
+if (!function_exists('smarty_excluded_categories_callback')) {
+    /**
+     * Callback function to display the excluded categories field.
+     */
+    function smarty_excluded_categories_callback() {
+        $option = get_option('smarty_excluded_categories', array());
+        $categories = get_terms(array(
+            'taxonomy' => 'product_cat',
+            'hide_empty' => false,
+        ));
+
+        echo '<select name="smarty_excluded_categories[]" multiple="multiple" style="width: 100%;">';
+        foreach ($categories as $category) {
+            echo '<option value="' . esc_attr($category->term_id) . '" ' . (in_array($category->term_id, (array)$option) ? 'selected' : '') . '>' . esc_html($category->name) . '</option>';
+        }
+        echo '</select>';
+        echo '<p class="description">' . __('Select categories to exclude from the feed.', 'smarty-google-feed-generator') . '</p>';
     }
 }
 
