@@ -1014,7 +1014,7 @@ if (!function_exists('smarty_exclude_patterns_callback')) {
 
 if (!function_exists('smarty_convert_images_button_callback')) {
     function smarty_convert_images_button_callback() {
-        echo '<button class="button secondary smarty-convert-images-button" style="display: inline-block; margin-bottom: 10px;">' . __('Convert First WebP Image to PNG', 'smarty-google-feed-generator') . '</button>';
+        echo '<button class="button secondary smarty-convert-images-button" style="display: inline-block; margin-bottom: 10px;">' . __('Convert WebP to PNG', 'smarty-google-feed-generator') . '</button>';
     }
 }
 
