@@ -21,6 +21,16 @@ if (!function_exists('smarty_enqueue_admin_scripts')) {
         wp_enqueue_script('select2', 'https://cdn.jsdelivr.net/npm/select2@4.0.13/dist/js/select2.min.js', array('jquery'), '4.0.13', true);
         wp_enqueue_style('select2', 'https://cdn.jsdelivr.net/npm/select2@4.0.13/dist/css/select2.min.css', array(), '4.0.13');
         wp_enqueue_script('smarty-admin-js', plugin_dir_url(__FILE__) . 'js/smarty-admin.js', array('jquery', 'select2'), '1.0.0', true);
+        wp_enqueue_style('smarty-admin-css', plugin_dir_url(__FILE__) . 'css/smarty-admin.css', array(), '1.0.0');
+        wp_localize_script(
+            'smarty-admin-js',
+            'smartyFeedGenerator',
+            array(
+                'ajaxUrl' => admin_url('admin-ajax.php'),
+                'siteUrl' => site_url(),
+                'nonce'   => wp_create_nonce('smarty_feed_generator_nonce'),
+            )
+        );
     }
     add_action('admin_enqueue_scripts', 'smarty_enqueue_admin_scripts');
 }
@@ -81,6 +91,9 @@ if (!function_exists('smarty_generate_google_feed')) {
      * It uses WordPress and WooCommerce functions to build an XML feed that conforms to Google's specifications for product feeds.
      */
     function smarty_generate_google_feed() {
+        // Start output buffering to prevent any unwanted output
+        ob_start();
+
         // Set the content type to XML for the output
         header('Content-Type: application/xml; charset=utf-8');
 
@@ -93,6 +106,7 @@ if (!function_exists('smarty_generate_google_feed')) {
         $cached_feed = get_transient('smarty_google_feed');
         if ($cached_feed !== false) {
             echo $cached_feed; // Output the cached feed and stop processing if it exists
+            ob_end_flush();
             exit;
         }
     
@@ -100,17 +114,7 @@ if (!function_exists('smarty_generate_google_feed')) {
         if (class_exists('WooCommerce')) {
             // Get excluded categories from settings
             $excluded_categories = get_option('smarty_excluded_categories', array());
-
-            /* DEPRECATED
-            // Define category IDs that should be excluded from the feed
-            $uncategorized_term = get_term_by('slug', 'uncategorized', 'product_cat');
-            $upsell_term = get_term_by('slug', 'upsell', 'product_cat');
-            $checkout_upsell_term = get_term_by('slug', 'checkout-upsell', 'product_cat');
-
-            $uncategorized_term_id = $uncategorized_term ? $uncategorized_term->term_id : 0;
-            $upsell_term_id = $upsell_term ? $upsell_term->term_id : 0;
-            $checkout_upsell_term_id = $checkout_upsell_term ? $checkout_upsell_term->term_id : 0;
-            */
+            error_log('Excluded Categories: ' . print_r($excluded_categories, true));
 
             // Set up arguments for querying products, excluding certain categories
             $args = array(
@@ -124,42 +128,46 @@ if (!function_exists('smarty_generate_google_feed')) {
                     array(
                         'taxonomy' => 'product_cat',
                         'field'    => 'term_id',
-                        'terms'    => $excluded_categories, // DEPRECATED: [$uncategorized_term_id, $upsell_term_id, $checkout_upsell_term_id],
+                        'terms'    => $excluded_categories,
                         'operator' => 'NOT IN',
                     ),
                 ),
             );
-    
+
             // Fetch products using WooCommerce function
             $products = wc_get_products($args);
+            error_log('Product Query Args: ' . print_r($args, true));
+            error_log('Products: ' . print_r($products, true));
 
             // Initialize the XML structure
             $xml = new SimpleXMLElement('<feed xmlns="http://www.w3.org/2005/Atom" xmlns:g="http://base.google.com/ns/1.0"/>');
     
             // Loop through each product to add details to the feed
             foreach ($products as $product) {
+                error_log('Processing Product: ' . print_r($product->get_data(), true));
+
                 if ($product->is_type('variable')) {
                     // Get all variations if product is variable
                     $variations = $product->get_children();
 
                     if (!empty($variations)) {
-                        $first_variation_id = $variations[0];              // Process only the first variation for the feed
+                        $first_variation_id = $variations[0]; // Process only the first variation for the feed
                         $variation = wc_get_product($first_variation_id);
-                        $item = $xml->addChild('item');                    // Add item node for each product
-                        $gNamespace = 'http://base.google.com/ns/1.0';     // Google namespace
-        
+                        $item = $xml->addChild('item'); // Add item node for each product
+                        $gNamespace = 'http://base.google.com/ns/1.0';
+
                         // Add product details as child nodes
-                        $item->addChild('g:id', $variation->get_id(), $gNamespace);   // Include product ID for identification
+                        $item->addChild('g:id', $variation->get_id(), $gNamespace); // Include product ID for identification
                         $item->addChild('g:sku', $variation->get_sku(), $gNamespace); // Include SKU for identification
                         $item->addChild('title', htmlspecialchars($product->get_name()), $gNamespace);
                         $item->addChild('link', get_permalink($product->get_id()), $gNamespace);
-        
+
                         // Add description, using meta description if available or fallback to short description
                         $meta_description = get_post_meta($product->get_id(), 'veni-description', true);
                         $description = !empty($meta_description) ? $meta_description : $product->get_short_description();
                         $item->addChild('description', htmlspecialchars(strip_tags($description)), $gNamespace);
 
-                       // Add image links
+                        // Add image links
                         $image_id = $variation->get_image_id() ? $variation->get_image_id() : $product->get_image_id();
                         $item->addChild('image_link', wp_get_attachment_url($image_id), $gNamespace);
 
@@ -168,19 +176,21 @@ if (!function_exists('smarty_generate_google_feed')) {
                         foreach ($gallery_ids as $gallery_id) {
                             $item->addChild('additional_image_link', wp_get_attachment_url($gallery_id), $gNamespace);
                         }
-        
+
                         // Add price details
                         $item->addChild('price', htmlspecialchars($variation->get_regular_price() . ' ' . get_woocommerce_currency()), $gNamespace);
                         if ($variation->is_on_sale()) {
                             $item->addChild('sale_price', htmlspecialchars($variation->get_sale_price() . ' ' . get_woocommerce_currency()), $gNamespace);
                         }
-        
+
                         // Add product categories
                         $categories = wp_get_post_terms($product->get_id(), 'product_cat');
                         if (!empty($categories) && !is_wp_error($categories)) {
                             $category_names = array_map(function($term) { return $term->name; }, $categories);
                             $item->addChild('product_type', htmlspecialchars(join(' > ', $category_names)), $gNamespace);
                         }
+
+                        error_log('Added Variable Product Item: ' . print_r($variation->get_data(), true));
                     }
                 } else {
                     // Process simple products similarly
@@ -195,7 +205,7 @@ if (!function_exists('smarty_generate_google_feed')) {
                     $item->addChild('description', htmlspecialchars(strip_tags($description)), $gNamespace);
                     $item->addChild('image_link', wp_get_attachment_url($product->get_image_id()), $gNamespace);
                     $item->addChild('price', htmlspecialchars($product->get_price() . ' ' . get_woocommerce_currency()), $gNamespace);
-                    
+
                     if ($product->is_on_sale()) {
                         $item->addChild('sale_price', htmlspecialchars($product->get_sale_price() . ' ' . get_woocommerce_currency()), $gNamespace);
                     }
@@ -205,30 +215,34 @@ if (!function_exists('smarty_generate_google_feed')) {
                         $category_names = array_map(function($term) { return $term->name; }, $categories);
                         $item->addChild('product_type', htmlspecialchars(join(' > ', $category_names)), $gNamespace);
                     }
+
+                    error_log('Added Simple Product Item: ' . print_r($product->get_data(), true));
                 }
             }
-    
+
             // Save and output the XML
             $feed_content = $xml->asXML();
-            $feed_content = $xml->asXML();
-            $cache_duration = get_option('smarty_cache_duration', 12); // Default to 12 hours if not set
-            set_transient('smarty_google_feed', $feed_content, $cache_duration * HOUR_IN_SECONDS);
-            
-            if ($output) {
-                echo $feed_content;
-                exit; // Ensure the script stops here to prevent further output that could corrupt the feed
-            }
+            error_log('Feed Content: ' . $feed_content);
+            if ($feed_content) {
+                $cache_duration = get_option('smarty_cache_duration', 12); // Default to 12 hours if not set
+                set_transient('smarty_google_feed', $feed_content, $cache_duration * HOUR_IN_SECONDS);
 
-            return $feed_content;
-        } else {
-            if ($output) {
-                echo '<error>WooCommerce is not active.</error>';
+                echo $feed_content;
+                ob_end_flush();
+                exit; // Ensure the script stops here to prevent further output that could corrupt the feed
+            } else {
+                ob_end_clean();
+                error_log('Failed to generate feed content.');
+                echo '<error>Failed to generate feed content.</error>';
                 exit;
             }
-            return '<error>WooCommerce is not active.</error>';
+        } else {
+            ob_end_clean();
+            echo '<error>WooCommerce is not active.</error>';
+            exit;
         }
     }
-    add_action('smarty_generate_google_feed', 'smarty_generate_google_feed'); // the first one is event
+    add_action('smarty_generate_google_feed', 'smarty_generate_google_feed');
 }
 
 if (!function_exists('smarty_generate_google_reviews_feed')) {
@@ -332,17 +346,7 @@ if (!function_exists('smarty_generate_csv_export')) {
 
         // Get excluded categories from settings
         $excluded_categories = get_option('smarty_excluded_categories', array());
-
-        /* DEPRECATED
-        // Define category IDs that should be excluded from the feed
-        $uncategorized_term = get_term_by('slug', 'uncategorized', 'product_cat');
-        $upsell_term = get_term_by('slug', 'upsell', 'product_cat');
-        $checkout_upsell_term = get_term_by('slug', 'checkout-upsell', 'product_cat');
-
-        $uncategorized_term_id = $uncategorized_term ? $uncategorized_term->term_id : 0;
-        $upsell_term_id = $upsell_term ? $upsell_term->term_id : 0;
-        $checkout_upsell_term_id = $checkout_upsell_term ? $checkout_upsell_term->term_id : 0;
-        */
+        error_log('Excluded Categories: ' . print_r($excluded_categories, true));
 
         // Prepare arguments for querying products excluding specific categories
         $args = array(
@@ -356,7 +360,7 @@ if (!function_exists('smarty_generate_csv_export')) {
                 array(
                     'taxonomy'  => 'product_cat',
                     'field'     => 'term_id',
-                    'terms'     => $excluded_categories, // DEPRECATED: [$uncategorized_term_id, $upsell_term_id, $checkout_upsell_term_id],
+                    'terms'     => $excluded_categories,
                     'operator'  => 'NOT IN',            // Exclude products from these categories
                 ),
             ),
@@ -364,6 +368,8 @@ if (!function_exists('smarty_generate_csv_export')) {
         
         // Retrieve products using the defined arguments
         $products = wc_get_products($args);
+        error_log('Product Query Args: ' . print_r($args, true));
+        error_log('Products: ' . print_r($products, true));
 
         // Get exclude patterns from settings and split into array
         $exclude_patterns = preg_split('/\r\n|\r|\n/', get_option('smarty_exclude_patterns'));
@@ -1080,28 +1086,6 @@ if (!function_exists('smarty_cache_duration_callback')) {
         echo '<input type="number" name="smarty_cache_duration" value="' . esc_attr($option) . '" />';
         echo '<p class="description">' . __('Set the cache duration in hours.', 'smarty-google-feed-generator') . '</p>';
     }
-}
-
-if (!function_exists('smarty_feed_generator_enqueue_scripts')) {
-    function smarty_feed_generator_enqueue_scripts() {
-        wp_enqueue_script(
-            'smarty-feed-generator-js',
-            plugin_dir_url(__FILE__) . 'js/smarty-feed-generator.js',
-            array('jquery'),
-            '1.0.0',
-            true
-        );
-        wp_localize_script(
-            'smarty-feed-generator-js',
-            'smartyFeedGenerator',
-            array(
-                'ajaxUrl' => admin_url('admin-ajax.php'),
-                'siteUrl' => site_url(),
-                'nonce'   => wp_create_nonce('smarty_feed_generator_nonce'),
-            )
-        );
-    }
-    add_action('admin_enqueue_scripts', 'smarty_feed_generator_enqueue_scripts');
 }
 
 if (!function_exists('smarty_handle_ajax_convert_images')) {
