@@ -163,7 +163,7 @@ if (!function_exists('smarty_generate_google_feed')) {
                         $item->addChild('link', get_permalink($product->get_id()), $gNamespace);
 
                         // Add description, using meta description if available or fallback to short description
-                        $meta_description = get_post_meta($product->get_id(), 'veni-description', true);
+                        $meta_description = get_post_meta($product->get_id(), 'veni-description', true); // TODO: #3 Need to be change as logic and custom field name
                         $description = !empty($meta_description) ? $meta_description : $product->get_short_description();
                         $item->addChild('description', htmlspecialchars(strip_tags($description)), $gNamespace);
 
@@ -1025,7 +1025,7 @@ if (!function_exists('smarty_google_category_as_id_callback')) {
     function smarty_google_category_as_id_callback() {
         $option = get_option('smarty_google_category_as_id');
         echo '<input type="checkbox" name="smarty_google_category_as_id" value="1" ' . checked(1, $option, false) . ' />';
-        echo '<p class="description">' . __('Check this box to use Google Product Category ID in the CSV feed instead of the name.', 'smarty-google-feed-generator') . '</p>';
+        echo '<p class="description">' . __('Check to use Google Product Category ID in the CSV feed instead of the name.', 'smarty-google-feed-generator') . '</p>';
     }
 }
 
