@@ -1030,7 +1030,7 @@ if (!function_exists('smarty_clear_cache_callback')) {
     function smarty_clear_cache_callback() {
         $option = get_option('smarty_clear_cache');
         echo '<input type="checkbox" name="smarty_clear_cache" value="1" ' . checked(1, $option, false) . ' />';
-        echo '<p class="description">' . __('Check to clear the cache each time the feed is generated. <br><b>Important:</b> Remove this in production to utilize caching.', 'smarty-google-feed-generator') . '</p>';
+        echo '<p class="description">' . __('Check to clear the cache each time the feed is generated. <br><em><b>Important:</b> <span style="color: #c51244;">Remove this in production to utilize caching.</span></em>', 'smarty-google-feed-generator') . '</p>';
     }
 }
 
