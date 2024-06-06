@@ -75,8 +75,10 @@ if (!function_exists('smarty_generate_google_feed')) {
         // Set the content type to XML for the output
         header('Content-Type: application/xml; charset=utf-8');
 
-        // Temporarily clear the cached feed for testing; remove this in production to utilize caching
-        //delete_transient('smarty_google_feed');
+        // Check if the clear cache option is enabled
+        if (get_option('smarty_clear_cache')) {
+            delete_transient('smarty_google_feed');
+        }
     
         // Attempt to retrieve the cached version of the feed
         $cached_feed = get_transient('smarty_google_feed');
@@ -195,11 +197,19 @@ if (!function_exists('smarty_generate_google_feed')) {
             // Save and output the XML
             $feed_content = $xml->asXML();
             set_transient('smarty_google_feed', $feed_content, 12 * HOUR_IN_SECONDS);
-            echo $feed_content;
-            exit; // Ensure the script stops here to prevent further output that could corrupt the feed
+            
+            if ($output) {
+                echo $feed_content;
+                exit; // Ensure the script stops here to prevent further output that could corrupt the feed
+            }
+
+            return $feed_content;
         } else {
-            echo '<error>WooCommerce is not active.</error>';
-            exit;
+            if ($output) {
+                echo '<error>WooCommerce is not active.</error>';
+                exit;
+            }
+            return '<error>WooCommerce is not active.</error>';
         }
     }
     add_action('smarty_generate_google_feed', 'smarty_generate_google_feed'); // the first one is event
@@ -833,10 +843,163 @@ if (!function_exists('smarty_feed_generator_register_settings')) {
      * Register plugin settings.
      */
     function smarty_feed_generator_register_settings() {
+        // Register settings
         register_setting('smarty_feed_generator_settings', 'smarty_google_product_category');
         register_setting('smarty_feed_generator_settings', 'smarty_exclude_patterns');
+        register_setting('smarty_feed_generator_settings', 'smarty_clear_cache');
+
+        // Add General section
+        add_settings_section(
+            'smarty_gfg_section_general',                                   // ID of the section
+            __('General', 'smarty-google-feed-generator'),                  // Title of the section
+            'smarty_gfg_section_general_callback',                          // Callback function that fills the section with the desired content
+            'smarty_feed_generator_settings'                                // Page on which to add the section
+        );
+
+        // Add Settings section
+        add_settings_section(
+            'smarty_gfg_section_settings',                                  // ID of the section
+            __('Cache', 'smarty-google-feed-generator'),                    // Title of the section
+            'smarty_gfg_section_settings_callback',                         // Callback function that fills the section with the desired content
+            'smarty_feed_generator_settings'                                // Page on which to add the section
+        );
+
+        // Add settings fields
+        add_settings_field(
+            'smarty_google_product_category',                               // ID of the field
+            __('Google Product Category', 'smarty-google-feed-generator'),  // Title of the field
+            'smarty_google_product_category_callback',                      // Callback function to display the field
+            'smarty_feed_generator_settings',                               // Page on which to add the field
+            'smarty_gfg_section_general'                                    // Section to which this field belongs
+        );
+
+        add_settings_field(
+            'smarty_exclude_patterns',
+            __('Exclude Patterns', 'smarty-google-feed-generator'),
+            'smarty_exclude_patterns_callback',
+            'smarty_feed_generator_settings',
+            'smarty_gfg_section_general'
+        );
+
+        add_settings_field(
+            'smarty_generate_feed_now',
+            __('Generate Feeds', 'smarty-google-feed-generator'),
+            'smarty_generate_feed_buttons_callback',
+            'smarty_feed_generator_settings',
+            'smarty_gfg_section_general'
+        );
+
+        // Add settings field to Cache section
+        add_settings_field(
+            'smarty_clear_cache',
+            __('Clear Cache', 'smarty-google-feed-generator'),
+            'smarty_clear_cache_callback',
+            'smarty_feed_generator_settings',
+            'smarty_gfg_section_settings'
+        );
     }
     add_action('admin_init', 'smarty_feed_generator_register_settings');
+}
+
+if (!function_exists('smarty_gfg_section_general_callback')) {
+    function smarty_gfg_section_general_callback() {
+        echo '<p>' . __('General settings for the Google Feed Generator.', 'smarty-google-feed-generator') . '</p>';
+    }
+}
+
+if (!function_exists('smarty_gfg_section_settings_callback')) {
+    function smarty_gfg_section_settings_callback() {
+        echo '<p>' . __('Cache settings for the Google Feed Generator.', 'smarty-google-feed-generator') . '</p>';
+    }
+}
+
+if (!function_exists('smarty_google_product_category_callback')) {
+    function smarty_google_product_category_callback() {
+        $google_categories = smarty_get_google_product_categories();
+        $option = get_option('smarty_google_product_category');
+        echo '<select name="smarty_google_product_category">';
+        foreach ($google_categories as $category) {
+            echo '<option value="' . esc_attr($category) . '" ' . selected($option, $category, false) . '>' . esc_html($category) . '</option>';
+        }
+        echo '</select>';
+    }
+}
+
+if (!function_exists('smarty_exclude_patterns_callback')) {
+    function smarty_exclude_patterns_callback() {
+        $option = get_option('smarty_exclude_patterns');
+        echo '<textarea name="smarty_exclude_patterns" rows="10" cols="50" class="large-text">' . esc_textarea($option) . '</textarea>';
+        echo '<p class="description">' . __('Enter patterns to exclude from the CSV feed, one per line.', 'smarty-google-feed-generator') . '</p>';
+    }
+}
+
+if (!function_exists('smarty_generate_feed_buttons_callback')) {
+    function smarty_generate_feed_buttons_callback() {
+        echo '<p>' . __('Use the buttons below to manually generate the feeds.', 'smarty-google-feed-generator') . '</p>';
+        echo '<button class="button secondary smarty-generate-feed-button" data-feed-action="generate_product_feed" style="display: inline-block;">' . __('Generate Product Feed', 'smarty-google-feed-generator') . '</button>';
+        echo '<button class="button secondary smarty-generate-feed-button" data-feed-action="generate_reviews_feed" style="display: inline-block; margin: 0 10px;">' . __('Generate Reviews Feed', 'smarty-google-feed-generator') . '</button>';
+        echo '<button class="button secondary smarty-generate-feed-button" data-feed-action="generate_csv_export" style="display: inline-block; margin-right: 10px;">' . __('Generate CSV Export', 'smarty-google-feed-generator') . '</button>';
+    }
+}
+
+if (!function_exists('smarty_clear_cache_callback')) {
+    function smarty_clear_cache_callback() {
+        $option = get_option('smarty_clear_cache');
+        echo '<input type="checkbox" name="smarty_clear_cache" value="1" ' . checked(1, $option, false) . ' />';
+        echo '<p class="description">' . __('Check to clear the cache each time the feed is generated. <br><b>Important:</b> Remove this in production to utilize caching', 'smarty-google-feed-generator') . '</p>';
+    }
+}
+
+if (!function_exists('smarty_feed_generator_enqueue_scripts')) {
+    function smarty_feed_generator_enqueue_scripts() {
+        wp_enqueue_script(
+            'smarty-feed-generator-js',
+            plugin_dir_url(__FILE__) . 'js/smarty-feed-generator.js',
+            array('jquery'),
+            '1.0.0',
+            true
+        );
+        wp_localize_script(
+            'smarty-feed-generator-js',
+            'smartyFeedGenerator',
+            array(
+                'ajaxUrl' => admin_url('admin-ajax.php'),
+                'siteUrl' => site_url(),
+                'nonce'   => wp_create_nonce('smarty_feed_generator_nonce'),
+            )
+        );
+    }
+    add_action('admin_enqueue_scripts', 'smarty_feed_generator_enqueue_scripts');
+}
+
+if (!function_exists('smarty_handle_ajax_generate_feed')) {
+    function smarty_handle_ajax_generate_feed() {
+        check_ajax_referer('smarty_feed_generator_nonce', 'nonce');
+
+        if (!current_user_can('manage_options')) {
+            wp_send_json_error('You do not have sufficient permissions to access this page.');
+        }
+
+        $action = sanitize_text_field($_POST['feed_action']);
+        switch ($action) {
+            case 'generate_product_feed':
+                smarty_generate_google_feed();
+                wp_send_json_success('Product feed generated successfully.');
+                break;
+            case 'generate_reviews_feed':
+                smarty_generate_google_reviews_feed();
+                wp_send_json_success('Reviews feed generated successfully.');
+                break;
+            case 'generate_csv_export':
+                smarty_generate_csv_export();
+                wp_send_json_success('CSV export generated successfully.');
+                break;
+            default:
+                wp_send_json_error('Invalid action.');
+                break;
+        }
+    }
+    add_action('wp_ajax_smarty_generate_feed', 'smarty_handle_ajax_generate_feed');
 }
 
 if (!function_exists('smarty_feed_generator_settings_page_html')) {
@@ -849,10 +1012,7 @@ if (!function_exists('smarty_feed_generator_settings_page_html')) {
             return;
         }
 
-        // Get Google product categories
-        $google_categories = smarty_get_google_product_categories();
-
-        // Settings HTML
+        // HTML
         ?>
         <div class="wrap">
             <h1><?php esc_html_e('Google Feed Generator | Settings', 'smarty-google-feed-generator'); ?></h1>
@@ -860,35 +1020,6 @@ if (!function_exists('smarty_feed_generator_settings_page_html')) {
                 <?php
                 settings_fields('smarty_feed_generator_settings');
                 do_settings_sections('smarty_feed_generator_settings');
-                ?>
-                <table class="form-table" role="presentation">
-                    <tbody>
-                        <tr>
-                            <th scope="row">
-                                <label for="smarty_google_product_category"><?php esc_html_e('Google Product Category', 'smarty-google-feed-generator'); ?></label>
-                            </th>
-                            <td>
-                                <select name="smarty_google_product_category" id="smarty_google_product_category">
-                                    <?php foreach ($google_categories as $category): ?>
-                                        <option value="<?php echo esc_attr($category); ?>" <?php selected(get_option('smarty_google_product_category'), $category); ?>>
-                                            <?php echo esc_html($category); ?>
-                                        </option>
-                                    <?php endforeach; ?>
-                                </select>
-                            </td>
-                        </tr>
-                        <tr>
-                            <th scope="row">
-                                <label for="smarty_exclude_patterns"><?php esc_html_e('Exclude Patterns', 'smarty-google-feed-generator'); ?></label>
-                            </th>
-                            <td>
-                                <textarea name="smarty_exclude_patterns" id="smarty_exclude_patterns" rows="10" cols="50" class="large-text"><?php echo esc_textarea(get_option('smarty_exclude_patterns')); ?></textarea>
-                                <p class="description"><?php esc_html_e('Enter patterns to exclude from the CSV feed, one per line.', 'smarty-google-feed-generator'); ?></p>
-                            </td>
-                        </tr>
-                    </tbody>
-                </table>
-                <?php
                 submit_button(__('Save Settings', 'smarty-google-feed-generator'));
                 ?>
             </form>
