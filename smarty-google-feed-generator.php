@@ -373,7 +373,10 @@ if (!function_exists('smarty_generate_csv_export')) {
 
         // Get exclude patterns from settings and split into array
         $exclude_patterns = preg_split('/\r\n|\r|\n/', get_option('smarty_exclude_patterns'));
-        
+
+        // Check if Google category should be ID
+        $google_category_as_id = get_option('smarty_google_category_as_id', false);
+
         // Iterate through each product
         foreach ($products as $product) {
             // Retrieve the product URL
@@ -425,7 +428,14 @@ if (!function_exists('smarty_generate_csv_export')) {
             $description = preg_replace('/\s+/', ' ', $description); // Normalize whitespace in descriptions
             $availability = $product->is_in_stock() ? 'in stock' : 'out of stock';
             
+            // Get Google category as ID or name
             $google_product_category = smarty_get_cleaned_google_product_category(); // Get Google category from plugin settings
+            error_log('Google Product Category: ' . $google_product_category); // Debugging line
+            if ($google_category_as_id) {
+                $google_product_category = explode('-', $google_product_category)[0]; // Get only the ID part
+                error_log('Google Product Category ID: ' . $google_product_category); // Debugging line
+            }
+
             $brand = get_bloginfo('name');
             
             // Check for variable type to handle variations
@@ -692,7 +702,8 @@ if (!function_exists('smarty_regenerate_feed')) {
 
         // Save the generated XML content to a transient or a file for later use
 		$feed_content = $xml->asXML();
-		set_transient('smarty_google_feed', $feed_content, 12 * HOUR_IN_SECONDS);               // Cache the feed using WordPress transients 
+        $cache_duration = get_option('smarty_cache_duration', 12); // Default to 12 hours if not set
+        set_transient('smarty_google_feed', $feed_content, $cache_duration * HOUR_IN_SECONDS);  // Cache the feed using WordPress transients              
 		file_put_contents(WP_CONTENT_DIR . '/uploads/smarty_google_feed.xml', $feed_content);   // Optionally save the feed to a file in the WP uploads directory
 	}
 }
@@ -864,8 +875,9 @@ if (!function_exists('smarty_get_google_product_categories')) {
                 }
             }
 
-            // Cache the categories for 12 hours
-            set_transient('smarty_google_product_categories', $categories, 12 * HOUR_IN_SECONDS);
+            // Cache the feed using WordPress transients              
+            $cache_duration = get_option('smarty_cache_duration', 12); // Default to 12 hours if not set
+            set_transient('smarty_google_feed', $categories, $cache_duration * HOUR_IN_SECONDS);  
         }
         
         return $categories;
@@ -895,6 +907,7 @@ if (!function_exists('smarty_feed_generator_register_settings')) {
     function smarty_feed_generator_register_settings() {
         // Register settings
         register_setting('smarty_feed_generator_settings', 'smarty_google_product_category');
+        register_setting('smarty_feed_generator_settings', 'smarty_google_category_as_id');
         register_setting('smarty_feed_generator_settings', 'smarty_exclude_patterns');
         register_setting('smarty_feed_generator_settings', 'smarty_excluded_categories');
         register_setting('smarty_feed_generator_settings', 'smarty_clear_cache');
@@ -937,6 +950,14 @@ if (!function_exists('smarty_feed_generator_register_settings')) {
             'smarty_google_product_category',                               // ID of the field
             __('Google Product Category', 'smarty-google-feed-generator'),  // Title of the field
             'smarty_google_product_category_callback',                      // Callback function to display the field
+            'smarty_feed_generator_settings',                               // Page on which to add the field
+            'smarty_gfg_section_general'                                    // Section to which this field belongs
+        );
+
+        add_settings_field(
+            'smarty_google_category_as_id',                                 // ID of the field
+            __('Use Google Category ID', 'smarty-google-feed-generator'),   // Title of the field
+            'smarty_google_category_as_id_callback',                        // Callback function to display the field
             'smarty_feed_generator_settings',                               // Page on which to add the field
             'smarty_gfg_section_general'                                    // Section to which this field belongs
         );
@@ -997,6 +1018,14 @@ if (!function_exists('smarty_feed_generator_register_settings')) {
 if (!function_exists('smarty_gfg_section_general_callback')) {
     function smarty_gfg_section_general_callback() {
         echo '<p>' . __('General settings for the Google Feed Generator.', 'smarty-google-feed-generator') . '</p>';
+    }
+}
+
+if (!function_exists('smarty_google_category_as_id_callback')) {
+    function smarty_google_category_as_id_callback() {
+        $option = get_option('smarty_google_category_as_id');
+        echo '<input type="checkbox" name="smarty_google_category_as_id" value="1" ' . checked(1, $option, false) . ' />';
+        echo '<p class="description">' . __('Check this box to use Google Product Category ID in the CSV feed instead of the name.', 'smarty-google-feed-generator') . '</p>';
     }
 }
 
@@ -1198,17 +1227,17 @@ if (!function_exists('smarty_get_cleaned_google_product_category')) {
     function smarty_get_cleaned_google_product_category() {
         // Get the option value
         $category = get_option('smarty_google_product_category');
+        $use_id = get_option('smarty_google_category_as_id', false);
 
         // Split the string by the '-' character
-        $parts = explode('-', $category);
+        $parts = explode(' - ', $category);
 
-        // Check if the result has the expected parts
-        if (count($parts) == 2) {
-            // Trim any whitespace from the second part and return it
-            return trim($parts[1]);
+        if ($use_id && count($parts) > 1) {
+            // If the option to use the ID is enabled, return the first part (ID)
+            return trim($parts[0]);
         }
 
-        // If the string doesn't contain a '-', return the original value or handle as needed
+        // Otherwise, return the entire category string or handle as needed
         return $category;
     }
 }
