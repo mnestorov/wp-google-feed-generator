@@ -1224,6 +1224,15 @@ if (!function_exists('smarty_feed_generator_settings_page_html')) {
 }
 
 if (!function_exists('smarty_get_cleaned_google_product_category')) {
+	/**
+     * Retrieves the Google Product Category based on the plugin settings.
+     *
+     * This function fetches the Google Product Category as stored in the plugin settings.
+     * If the "Use Google Category ID" option is checked, it returns the category ID.
+     * Otherwise, it returns the category name, removing any preceding ID and hyphen.
+     *
+     * @return string The cleaned Google Product Category name or ID.
+     */
     function smarty_get_cleaned_google_product_category() {
         // Get the option value
         $category = get_option('smarty_google_product_category');
@@ -1235,9 +1244,12 @@ if (!function_exists('smarty_get_cleaned_google_product_category')) {
         if ($use_id && count($parts) > 1) {
             // If the option to use the ID is enabled, return the first part (ID)
             return trim($parts[0]);
+        } elseif (count($parts) > 1) {
+            // If the option to use the name is enabled, return the second part (Name)
+            return trim($parts[1]);
         }
 
-        // Otherwise, return the entire category string or handle as needed
+        // If the string doesn't contain a '-', return the original value or handle as needed
         return $category;
     }
 }
