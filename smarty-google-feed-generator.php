@@ -114,7 +114,7 @@ if (!function_exists('smarty_generate_google_feed')) {
         if (class_exists('WooCommerce')) {
             // Get excluded categories from settings
             $excluded_categories = get_option('smarty_excluded_categories', array());
-            error_log('Excluded Categories: ' . print_r($excluded_categories, true));
+            //error_log('Excluded Categories: ' . print_r($excluded_categories, true));
 
             // Set up arguments for querying products, excluding certain categories
             $args = array(
@@ -136,15 +136,15 @@ if (!function_exists('smarty_generate_google_feed')) {
 
             // Fetch products using WooCommerce function
             $products = wc_get_products($args);
-            error_log('Product Query Args: ' . print_r($args, true));
-            error_log('Products: ' . print_r($products, true));
+            //error_log('Product Query Args: ' . print_r($args, true));
+            //error_log('Products: ' . print_r($products, true));
 
             // Initialize the XML structure
             $xml = new SimpleXMLElement('<feed xmlns="http://www.w3.org/2005/Atom" xmlns:g="http://base.google.com/ns/1.0"/>');
     
             // Loop through each product to add details to the feed
             foreach ($products as $product) {
-                error_log('Processing Product: ' . print_r($product->get_data(), true));
+                //error_log('Processing Product: ' . print_r($product->get_data(), true));
 
                 if ($product->is_type('variable')) {
                     // Get all variations if product is variable
@@ -190,7 +190,7 @@ if (!function_exists('smarty_generate_google_feed')) {
                             $item->addChild('product_type', htmlspecialchars(join(' > ', $category_names)), $gNamespace);
                         }
 
-                        error_log('Added Variable Product Item: ' . print_r($variation->get_data(), true));
+                        //error_log('Added Variable Product Item: ' . print_r($variation->get_data(), true));
                     }
                 } else {
                     // Process simple products similarly
@@ -216,13 +216,13 @@ if (!function_exists('smarty_generate_google_feed')) {
                         $item->addChild('product_type', htmlspecialchars(join(' > ', $category_names)), $gNamespace);
                     }
 
-                    error_log('Added Simple Product Item: ' . print_r($product->get_data(), true));
+                    //error_log('Added Simple Product Item: ' . print_r($product->get_data(), true));
                 }
             }
 
             // Save and output the XML
             $feed_content = $xml->asXML();
-            error_log('Feed Content: ' . $feed_content);
+            //error_log('Feed Content: ' . $feed_content);
             if ($feed_content) {
                 $cache_duration = get_option('smarty_cache_duration', 12); // Default to 12 hours if not set
                 set_transient('smarty_google_feed', $feed_content, $cache_duration * HOUR_IN_SECONDS);
@@ -232,7 +232,7 @@ if (!function_exists('smarty_generate_google_feed')) {
                 exit; // Ensure the script stops here to prevent further output that could corrupt the feed
             } else {
                 ob_end_clean();
-                error_log('Failed to generate feed content.');
+                //error_log('Failed to generate feed content.');
                 echo '<error>Failed to generate feed content.</error>';
                 exit;
             }
@@ -346,7 +346,7 @@ if (!function_exists('smarty_generate_csv_export')) {
 
         // Get excluded categories from settings
         $excluded_categories = get_option('smarty_excluded_categories', array());
-        error_log('Excluded Categories: ' . print_r($excluded_categories, true));
+        //error_log('Excluded Categories: ' . print_r($excluded_categories, true));
 
         // Prepare arguments for querying products excluding specific categories
         $args = array(
@@ -368,8 +368,8 @@ if (!function_exists('smarty_generate_csv_export')) {
         
         // Retrieve products using the defined arguments
         $products = wc_get_products($args);
-        error_log('Product Query Args: ' . print_r($args, true));
-        error_log('Products: ' . print_r($products, true));
+        //error_log('Product Query Args: ' . print_r($args, true));
+        //error_log('Products: ' . print_r($products, true));
 
         // Get exclude patterns from settings and split into array
         $exclude_patterns = preg_split('/\r\n|\r|\n/', get_option('smarty_exclude_patterns'));
@@ -815,7 +815,7 @@ if (!function_exists('smarty_convert_webp_to_png')) {
      */
     function smarty_convert_webp_to_png($source, $destination) {
         if (!function_exists('imagecreatefromwebp')) {
-            error_log('GD Library is not installed or does not support WEBP.');
+            //error_log('GD Library is not installed or does not support WEBP.');
             return false;
         }
 
