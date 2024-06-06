@@ -1,26 +1,35 @@
 jQuery(document).ready(function($) {
-    $('.smarty-convert-images-button').on('click', function() {
-        var nonce = smartyFeedGenerator.nonce;
+    $('.smarty-convert-images-button').on('click', function (e) {
+        e.preventDefault(); // Prevent the default form submission
+
+        var button = $(this);
+        button.attr('disabled', true);
 
         $.ajax({
             url: smartyFeedGenerator.ajaxUrl,
-            type: 'POST',
+            method: 'POST',
             data: {
                 action: 'smarty_convert_images',
-                nonce: nonce
+                nonce: smartyFeedGenerator.nonce
             },
-            success: function(response) {
+            success: function (response) {
                 if (response.success) {
                     alert(response.data);
                 } else {
                     alert('Error: ' + response.data);
                 }
+            },
+            error: function (xhr, status, error) {
+                alert('AJAX Error: ' + error);
+            },
+            complete: function () {
+                button.attr('disabled', false);
             }
         });
     });
 
     $('.smarty-generate-feed-button').on('click', function(e) {
-        e.preventDefault();
+        e.preventDefault(); // Prevent the default form submission
 
         var action = $(this).data('feed-action');
         var redirectUrl = '';
