@@ -430,10 +430,10 @@ if (!function_exists('smarty_generate_csv_export')) {
             
             // Get Google category as ID or name
             $google_product_category = smarty_get_cleaned_google_product_category(); // Get Google category from plugin settings
-            error_log('Google Product Category: ' . $google_product_category); // Debugging line
+            //error_log('Google Product Category: ' . $google_product_category); // Debugging line
             if ($google_category_as_id) {
                 $google_product_category = explode('-', $google_product_category)[0]; // Get only the ID part
-                error_log('Google Product Category ID: ' . $google_product_category); // Debugging line
+                //error_log('Google Product Category ID: ' . $google_product_category); // Debugging line
             }
 
             $brand = get_bloginfo('name');
