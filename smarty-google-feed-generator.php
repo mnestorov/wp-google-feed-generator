@@ -1072,7 +1072,7 @@ if (!function_exists('smarty_gfg_section_meta_fields_callback')) {
     function smarty_gfg_section_meta_fields_callback() {
         echo '<p>' . __('Meta fields settings for the Google Feed Generator.', 'smarty-google-feed-generator') . '</p>';
     }
-}-
+}
 
 if (!function_exists('smarty_gfg_section_settings_callback')) {
     function smarty_gfg_section_settings_callback() {
