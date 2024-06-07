@@ -163,7 +163,7 @@ if (!function_exists('smarty_generate_google_feed')) {
                         $item->addChild('link', get_permalink($product->get_id()), $gNamespace);
 
                         // Add description, using meta description if available or fallback to short description
-                        $meta_description = get_post_meta($product->get_id(), 'veni-description', true); // TODO: #3 Need to be change as logic and custom field name
+                        $meta_description = get_post_meta($product->get_id(), get_option('smarty_meta_description_field', 'smarty-meta-description'), true);
                         $description = !empty($meta_description) ? $meta_description : $product->get_short_description();
                         $item->addChild('description', htmlspecialchars(strip_tags($description)), $gNamespace);
 
@@ -421,8 +421,8 @@ if (!function_exists('smarty_generate_csv_export')) {
             $image_link = $image_id ? wp_get_attachment_url($image_id) : '';
 
             // Custom meta fields for title and description if set
-            $meta_title = get_post_meta($id, 'veni-title', true); // TODO: #3 Need to be change as logic and custom field name
-            $meta_description = get_post_meta($id, 'veni-description', true); // TODO: #3 Need to be change as logic and custom field name
+            $meta_title = get_post_meta($id, get_option('smarty_meta_title_field', 'smarty-meta-title'), true);
+            $meta_description = get_post_meta($id, get_option('smarty_meta_description_field', 'smarty-meta-description'), true);
             $name = !empty($meta_title) ? htmlspecialchars(strip_tags($meta_title)) : htmlspecialchars(strip_tags($product->get_name()));
             $description = !empty($meta_description) ? htmlspecialchars(strip_tags($meta_description)) : htmlspecialchars(strip_tags($product->get_short_description()));
             $description = preg_replace('/\s+/', ' ', $description); // Normalize whitespace in descriptions
@@ -910,6 +910,8 @@ if (!function_exists('smarty_feed_generator_register_settings')) {
         register_setting('smarty_feed_generator_settings', 'smarty_google_category_as_id');
         register_setting('smarty_feed_generator_settings', 'smarty_exclude_patterns');
         register_setting('smarty_feed_generator_settings', 'smarty_excluded_categories');
+        register_setting('smarty_feed_generator_settings', 'smarty_meta_title_field');
+        register_setting('smarty_feed_generator_settings', 'smarty_meta_description_field');
         register_setting('smarty_feed_generator_settings', 'smarty_clear_cache');
         register_setting('smarty_feed_generator_settings', 'smarty_cache_duration');
 
@@ -934,6 +936,14 @@ if (!function_exists('smarty_feed_generator_register_settings')) {
             'smarty_gfg_section_generate_feeds',                            // ID of the section
             __('Generate Feeds', 'smarty-google-feed-generator'),           // Title of the section
             'smarty_gfg_section_generate_feeds_callback',                   // Callback function that fills the section with the desired content
+            'smarty_feed_generator_settings'                                // Page on which to add the section
+        );
+
+        // Add Meta Fields section
+        add_settings_section(
+            'smarty_gfg_section_meta_fields',                               // ID of the section
+            __('Meta Fields', 'smarty-google-feed-generator'),              // Title of the section
+            'smarty_gfg_section_meta_fields_callback',                      // Callback function that fills the section with the desired content
             'smarty_feed_generator_settings'                                // Page on which to add the section
         );
 
@@ -994,6 +1004,23 @@ if (!function_exists('smarty_feed_generator_register_settings')) {
             'smarty_gfg_section_generate_feeds'                             // Section to which this field belongs
         );
 
+        // Add settings fields to Meta Fields section
+        add_settings_field(
+            'smarty_meta_title_field',                                       // ID of the field
+            __('Meta Title Field', 'smarty-google-feed-generator'),          // Title of the field
+            'smarty_meta_title_field_callback',                              // Callback function to display the field
+            'smarty_feed_generator_settings',                                // Page on which to add the field
+            'smarty_gfg_section_meta_fields'                                 // Section to which this field belongs
+        );
+
+        add_settings_field(
+            'smarty_meta_description_field',                                 // ID of the field
+            __('Meta Description Field', 'smarty-google-feed-generator'),    // Title of the field
+            'smarty_meta_description_field_callback',                        // Callback function to display the field
+            'smarty_feed_generator_settings',                                // Page on which to add the field
+            'smarty_gfg_section_meta_fields'                                 // Section to which this field belongs
+        );
+
         // Add settings field to Cache section
         add_settings_field(
             'smarty_clear_cache',                                           // ID of the field
@@ -1040,6 +1067,12 @@ if (!function_exists('smarty_gfg_section_generate_feeds_callback')) {
         echo '<p>' . __('Use the buttons below to manually generate the feeds.', 'smarty-google-feed-generator') . '</p>';
     }
 }
+
+if (!function_exists('smarty_gfg_section_meta_fields_callback')) {
+    function smarty_gfg_section_meta_fields_callback() {
+        echo '<p>' . __('Meta fields settings for the Google Feed Generator.', 'smarty-google-feed-generator') . '</p>';
+    }
+}-
 
 if (!function_exists('smarty_gfg_section_settings_callback')) {
     function smarty_gfg_section_settings_callback() {
@@ -1098,6 +1131,22 @@ if (!function_exists('smarty_generate_feed_buttons_callback')) {
         echo '<button class="button secondary smarty-generate-feed-button" data-feed-action="generate_product_feed" style="display: inline-block;">' . __('Generate Product Feed', 'smarty-google-feed-generator') . '</button>';
         echo '<button class="button secondary smarty-generate-feed-button" data-feed-action="generate_reviews_feed" style="display: inline-block; margin: 0 10px;">' . __('Generate Reviews Feed', 'smarty-google-feed-generator') . '</button>';
         echo '<button class="button secondary smarty-generate-feed-button" data-feed-action="generate_csv_export" style="display: inline-block; margin-right: 10px;">' . __('Generate CSV Export', 'smarty-google-feed-generator') . '</button>';
+    }
+}
+
+if (!function_exists('smarty_meta_title_field_callback')) {
+    function smarty_meta_title_field_callback() {
+        $option = get_option('smarty_meta_title_field', 'smarty-meta-title');
+        echo '<input type="text" name="smarty_meta_title_field" value="' . esc_attr($option) . '" class="regular-text" />';
+        echo '<p class="description">' . __('Enter the custom field name for the product title meta.', 'smarty-google-feed-generator') . '</p>';
+    }
+}
+
+if (!function_exists('smarty_meta_description_field_callback')) {
+    function smarty_meta_description_field_callback() {
+        $option = get_option('smarty_meta_description_field', 'smarty-meta-description');
+        echo '<input type="text" name="smarty_meta_description_field" value="' . esc_attr($option) . '" class="regular-text" />';
+        echo '<p class="description">' . __('Enter the custom field name for the product description meta.', 'smarty-google-feed-generator') . '</p>';
     }
 }
 
