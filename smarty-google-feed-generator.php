@@ -190,6 +190,13 @@ if (!function_exists('smarty_generate_google_feed')) {
                             $item->addChild('product_type', htmlspecialchars(join(' > ', $category_names)), $gNamespace);
                         }
 
+                        // Custom Labels
+                        $item->addChild('g:custom_label_0', smarty_get_custom_label_0($product), $gNamespace);
+                        $item->addChild('g:custom_label_1', smarty_get_custom_label_1($product), $gNamespace);
+                        $item->addChild('g:custom_label_2', smarty_get_custom_label_2($product), $gNamespace);
+                        $item->addChild('g:custom_label_3', smarty_get_custom_label_3($product), $gNamespace);
+                        $item->addChild('g:custom_label_4', smarty_get_custom_label_4($product), $gNamespace);
+
                         //error_log('Added Variable Product Item: ' . print_r($variation->get_data(), true));
                     }
                 } else {
@@ -210,11 +217,19 @@ if (!function_exists('smarty_generate_google_feed')) {
                         $item->addChild('sale_price', htmlspecialchars($product->get_sale_price() . ' ' . get_woocommerce_currency()), $gNamespace);
                     }
 
+                    // Add product categories
                     $categories = wp_get_post_terms($product->get_id(), 'product_cat');
                     if (!empty($categories) && !is_wp_error($categories)) {
                         $category_names = array_map(function($term) { return $term->name; }, $categories);
                         $item->addChild('product_type', htmlspecialchars(join(' > ', $category_names)), $gNamespace);
                     }
+
+                    // Custom Labels
+                    $item->addChild('g:custom_label_0', smarty_get_custom_label_0($product), $gNamespace);
+                    $item->addChild('g:custom_label_1', smarty_get_custom_label_1($product), $gNamespace);
+                    $item->addChild('g:custom_label_2', smarty_get_custom_label_2($product), $gNamespace);
+                    $item->addChild('g:custom_label_3', smarty_get_custom_label_3($product), $gNamespace);
+                    $item->addChild('g:custom_label_4', smarty_get_custom_label_4($product), $gNamespace);
 
                     //error_log('Added Simple Product Item: ' . print_r($product->get_data(), true));
                 }
@@ -338,7 +353,12 @@ if (!function_exists('smarty_generate_csv_export')) {
             'MPN',                      // Manufacturer Part Number
             'Availability',             // Stock status
             'Condition',                // Condition of the product, usually "new" for e-commerce
-            'Brand'                     // Brand of the product
+            'Brand',                    // Brand of the product
+            'Custom Label 0',           // Custom label 0
+            'Custom Label 1',           // Custom label 1
+            'Custom Label 2',           // Custom label 2
+            'Custom Label 3',           // Custom label 3
+            'Custom Label 4',           // Custom label 4
         );
     
         // Write the header row to the CSV file
@@ -437,6 +457,13 @@ if (!function_exists('smarty_generate_csv_export')) {
             }
 
             $brand = get_bloginfo('name');
+
+            // Custom Labels
+            $custom_label_0 = smarty_get_custom_label_0($product);
+            $custom_label_1 = smarty_get_custom_label_1($product);
+            $custom_label_2 = smarty_get_custom_label_2($product);
+            $custom_label_3 = smarty_get_custom_label_3($product);
+            $custom_label_4 = smarty_get_custom_label_4($product);
             
             // Check for variable type to handle variations
             if ($product->is_type('variable')) {
@@ -468,6 +495,11 @@ if (!function_exists('smarty_generate_csv_export')) {
                         'Availability'            => $availability,
                         'Condition'               => 'New',
                         'Brand'                   => $brand,
+                        'Custom Label 0'          => $custom_label_0, 
+                        'Custom Label 1'          => $custom_label_1, 
+                        'Custom Label 2'          => $custom_label_2,
+                        'Custom Label 3'          => $custom_label_3, 
+                        'Custom Label 4'          => $custom_label_4,
                     );
                 }
             } else {
@@ -490,6 +522,11 @@ if (!function_exists('smarty_generate_csv_export')) {
                     'Availability'            => $availability,
                     'Condition'               => 'New',
                     'Brand'                   => $brand,
+                    'Custom Label 0'          => $custom_label_0, 
+                    'Custom Label 1'          => $custom_label_1, 
+                    'Custom Label 2'          => $custom_label_2,
+                    'Custom Label 3'          => $custom_label_3, 
+                    'Custom Label 4'          => $custom_label_4,
                 );
             }
     
@@ -910,6 +947,18 @@ if (!function_exists('smarty_feed_generator_register_settings')) {
         register_setting('smarty_feed_generator_settings', 'smarty_google_category_as_id');
         register_setting('smarty_feed_generator_settings', 'smarty_exclude_patterns');
         register_setting('smarty_feed_generator_settings', 'smarty_excluded_categories');
+        
+        // Register settings for each criteria
+        register_setting('smarty_feed_generator_settings', 'smarty_custom_label_0_older_than_days');
+        register_setting('smarty_feed_generator_settings', 'smarty_custom_label_0_older_than_value');
+        register_setting('smarty_feed_generator_settings', 'smarty_custom_label_0_not_older_than_days');
+        register_setting('smarty_feed_generator_settings', 'smarty_custom_label_0_not_older_than_value');
+        register_setting('smarty_feed_generator_settings', 'smarty_custom_label_2_most_ordered_days');
+        register_setting('smarty_feed_generator_settings', 'smarty_custom_label_2_most_ordered_value');
+        register_setting('smarty_feed_generator_settings', 'smarty_custom_label_3_category');
+        register_setting('smarty_feed_generator_settings', 'smarty_custom_label_3_category_value');
+        register_setting('smarty_feed_generator_settings', 'smarty_custom_label_4_sale_price_value');
+
         register_setting('smarty_feed_generator_settings', 'smarty_meta_title_field');
         register_setting('smarty_feed_generator_settings', 'smarty_meta_description_field');
         register_setting('smarty_feed_generator_settings', 'smarty_clear_cache');
@@ -920,6 +969,14 @@ if (!function_exists('smarty_feed_generator_register_settings')) {
             'smarty_gfg_section_general',                                   // ID of the section
             __('General', 'smarty-google-feed-generator'),                  // Title of the section
             'smarty_gfg_section_general_callback',                          // Callback function that fills the section with the desired content
+            'smarty_feed_generator_settings'                                // Page on which to add the section
+        );
+
+        // Add Custom Labels section
+        add_settings_section(
+            'smarty_gfg_section_custom_labels',                             // ID of the section
+            __('Custom Labels', 'smarty-google-feed-generator'),            // Title of the section
+            'smarty_gfg_section_custom_labels_callback',                    // Callback function that fills the section with the desired content
             'smarty_feed_generator_settings'                                // Page on which to add the section
         );
 
@@ -986,6 +1043,88 @@ if (!function_exists('smarty_feed_generator_register_settings')) {
             'smarty_excluded_categories_callback',                          // Callback function to display the field
             'smarty_feed_generator_settings',                               // Page on which to add the field
             'smarty_gfg_section_general'                                    // Section to which this field belongs
+        );
+        
+        // Add settings fields for each criteria
+        add_settings_field(
+            'smarty_custom_label_0_older_than_days',
+            __('Older Than (Days)', 'smarty-google-feed-generator'),
+            'smarty_custom_label_days_callback',
+            'smarty_feed_generator_settings',
+            'smarty_gfg_section_custom_labels',
+            ['label' => 'smarty_custom_label_0_older_than_days']
+        );
+
+        add_settings_field(
+            'smarty_custom_label_0_older_than_value',
+            __('Older Than Value', 'smarty-google-feed-generator'),
+            'smarty_custom_label_value_callback',
+            'smarty_feed_generator_settings',
+            'smarty_gfg_section_custom_labels',
+            ['label' => 'smarty_custom_label_0_older_than_value']
+        );
+
+        add_settings_field(
+            'smarty_custom_label_1_not_older_than_days',
+            __('Not Older Than (Days)', 'smarty-google-feed-generator'),
+            'smarty_custom_label_days_callback',
+            'smarty_feed_generator_settings',
+            'smarty_gfg_section_custom_labels',
+            ['label' => 'smarty_custom_label_1_not_older_than_days']
+        );
+
+        add_settings_field(
+            'smarty_custom_label_1_not_older_than_value',
+            __('Not Older Than Value', 'smarty-google-feed-generator'),
+            'smarty_custom_label_value_callback',
+            'smarty_feed_generator_settings',
+            'smarty_gfg_section_custom_labels',
+            ['label' => 'smarty_custom_label_1_not_older_than_value']
+        );
+
+        add_settings_field(
+            'smarty_custom_label_2_most_ordered_days',
+            __('Most Ordered in Last (Days)', 'smarty-google-feed-generator'),
+            'smarty_custom_label_days_callback',
+            'smarty_feed_generator_settings',
+            'smarty_gfg_section_custom_labels',
+            ['label' => 'smarty_custom_label_2_most_ordered_days']
+        );
+
+        add_settings_field(
+            'smarty_custom_label_2_most_ordered_value',
+            __('Most Ordered Value', 'smarty-google-feed-generator'),
+            'smarty_custom_label_value_callback',
+            'smarty_feed_generator_settings',
+            'smarty_gfg_section_custom_labels',
+            ['label' => 'smarty_custom_label_2_most_ordered_value']
+        );
+
+        add_settings_field(
+            'smarty_custom_label_3_category',
+            __('Category', 'smarty-google-feed-generator'),
+            'smarty_custom_label_category_callback',
+            'smarty_feed_generator_settings',
+            'smarty_gfg_section_custom_labels',
+            ['label' => 'smarty_custom_label_3_category']
+        );
+
+        add_settings_field(
+            'smarty_custom_label_3_category_value',
+            __('Category Value', 'smarty-google-feed-generator'),
+            'smarty_custom_label_value_callback',
+            'smarty_feed_generator_settings',
+            'smarty_gfg_section_custom_labels',
+            ['label' => 'smarty_custom_label_3_category_value']
+        );
+
+        add_settings_field(
+            'smarty_custom_label_4_sale_price_value',
+            __('Sale Price Value', 'smarty-google-feed-generator'),
+            'smarty_custom_label_value_callback',
+            'smarty_feed_generator_settings',
+            'smarty_gfg_section_custom_labels',
+            ['label' => 'smarty_custom_label_4_sale_price_value']
         );
 
         add_settings_field(
@@ -1056,6 +1195,12 @@ if (!function_exists('smarty_google_category_as_id_callback')) {
     }
 }
 
+if (!function_exists('smarty_gfg_section_custom_labels_callback')) {
+    function smarty_gfg_section_custom_labels_callback() {
+        echo '<p>' . __('Define default values for custom labels.', 'smarty-google-feed-generator') . '</p>';
+    }
+}
+
 if (!function_exists('smarty_gfg_section_convert_images_callback')) {
     function smarty_gfg_section_convert_images_callback() {
         echo '<p>' . __('Use the button below to manually convert the first WebP image of each products in to the feed to PNG.', 'smarty-google-feed-generator') . '</p>';
@@ -1118,6 +1263,42 @@ if (!function_exists('smarty_excluded_categories_callback')) {
         echo '</select>';
         echo '<p class="description">' . __('Select categories to exclude from the feed.', 'smarty-google-feed-generator') . '</p>';
     }
+}
+
+if (!function_exists('smarty_custom_label_days_callback')) {
+    function smarty_custom_label_days_callback($args) {
+        $option = get_option($args['label'], 30);
+        $days = [10, 20, 30, 60, 90, 120];
+        echo '<select name="' . esc_attr($args['label']) . '">';
+        foreach ($days as $day) {
+            echo '<option value="' . esc_attr($day) . '" ' . selected($option, $day, false) . '>' . esc_html($day) . '</option>';
+        }
+        echo '</select>';
+    }
+}
+
+if (!function_exists('smarty_custom_label_value_callback')) {
+    function smarty_custom_label_value_callback($args) {
+        $option = get_option($args['label'], '');
+        echo '<input type="text" name="' . esc_attr($args['label']) . '" value="' . esc_attr($option) . '" class="regular-text" />';
+    }
+}
+
+if (!function_exists('smarty_custom_label_category_callback')) {
+    function smarty_custom_label_category_callback($args) {
+        $option = get_option($args['label'], []);
+        $categories = get_terms([
+            'taxonomy' => 'product_cat',
+            'hide_empty' => false,
+        ]);
+
+        echo '<select name="' . esc_attr($args['label']) . '[]" multiple="multiple" class="smarty-excluded-categories">';
+        foreach ($categories as $category) {
+            echo '<option value="' . esc_attr($category->term_id) . '" ' . (in_array($category->term_id, (array) $option) ? 'selected' : '') . '>' . esc_html($category->name) . '</option>';
+        }
+        echo '</select>';
+    }
+    add_action('admin_init', 'smarty_feed_generator_register_settings');
 }
 
 if (!function_exists('smarty_convert_images_button_callback')) {
@@ -1301,4 +1482,101 @@ if (!function_exists('smarty_get_cleaned_google_product_category')) {
         // If the string doesn't contain a '-', return the original value or handle as needed
         return $category;
     }
+}
+
+// Custom Label 0 
+function smarty_get_custom_label_0($product) {
+    $date_created = $product->get_date_created();
+    $now = new DateTime();
+    
+    // Older Than X Days
+    $older_than_days = get_option('smarty_custom_label_0_older_than_days', 30);
+    $older_than_value = get_option('smarty_custom_label_0_older_than_value', 'established');
+    if ($date_created && $now->diff($date_created)->days > $older_than_days) {
+        return $older_than_value;
+    }
+
+    // Not Older Than Y Days
+    $not_older_than_days = get_option('smarty_custom_label_0_not_older_than_days', 30);
+    $not_older_than_value = get_option('smarty_custom_label_0_not_older_than_value', 'new');
+    if ($date_created && $now->diff($date_created)->days <= $not_older_than_days) {
+        return $not_older_than_value;
+    }
+
+    return '';
+}
+
+// Custom Label 1
+function smarty_get_custom_label_1($product) {
+    return ''; // TODO
+}
+
+// Custom Label 2: Most Ordered in Last Z Days
+function smarty_get_custom_label_2($product) {
+    $most_ordered_days = get_option('smarty_custom_label_2_most_ordered_days', 30);
+    $most_ordered_value = get_option('smarty_custom_label_2_most_ordered_value', 'bestseller');
+    $args = [
+        'post_type'      => 'shop_order',
+        'post_status'    => 'wc-completed',
+        'posts_per_page' => -1,
+        'date_query'     => [
+            'after' => date('Y-m-d', strtotime("-$most_ordered_days days")),
+        ],
+        'meta_query'     => [
+            [
+                'key'     => '_product_id',
+                'value'   => $product->get_id(),
+                'compare' => '=',
+            ],
+        ],
+    ];
+    $orders = get_posts($args);
+    if (count($orders) > 0) {
+        return $most_ordered_value;
+    }
+    return '';
+}
+
+// Custom Label 3: In Selected Category
+function smarty_get_custom_label_3($product) {
+    $selected_category = get_option('smarty_custom_label_3_category', []);
+    $selected_category_value = get_option('smarty_custom_label_3_category_value', 'category_selected');
+    $categories = wp_get_post_terms($product->get_id(), 'product_cat', ['fields' => 'ids']);
+    if (array_intersect($categories, $selected_category)) {
+        return $selected_category_value;
+    }
+    return '';
+}
+
+// Custom Label 4: Has Sale Price
+function smarty_get_custom_label_4($product) {
+    $sale_price_value = get_option('smarty_custom_label_4_sale_price_value', 'on_sale');
+    if ($product->is_on_sale()) {
+        return $sale_price_value;
+    }
+    return '';
+}
+
+function smarty_evaluate_criteria($product, $criteria) {
+    if (empty($criteria)) {
+        return '';
+    }
+
+    $criteria = json_decode($criteria, true);
+
+    if (json_last_error() !== JSON_ERROR_NONE) {
+        return '';
+    }
+
+    foreach ($criteria as $criterion) {
+        if (isset($criterion['attribute']) && isset($criterion['value']) && isset($criterion['label'])) {
+            $attribute_value = get_post_meta($product->get_id(), $criterion['attribute'], true);
+
+            if ($attribute_value == $criterion['value']) {
+                return $criterion['label'];
+            }
+        }
+    }
+
+    return '';
 }
