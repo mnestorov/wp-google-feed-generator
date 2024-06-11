@@ -20,6 +20,9 @@
 - **Feed Caching:** Utilizes WordPress transients for caching feeds, improving response times and reducing server load for feed generation.
 - **Scheduled Regeneration:** Leverages WP-Cron for scheduled feed updates, ensuring your feeds remain up-to-date without manual intervention.
 - **Easy Activation and Deactivation:** Ensures a smooth setup and cleanup process through activation and deactivation hooks, managing rewrite rules and scheduled events accordingly.
+- **Custom Labels:** Supports custom labels based on various product criteria (e.g., high rating, most ordered, older than X days).
+- **Dynamic Bundle Tag:** Automatically sets the `Is Bundle` attribute based on the presence of the `bundle` tag in WooCommerce products.
+- **Additional Attributes:** Includes additional attributes such as `g:is_bundle`, `g:google_product_category`, `g:condition`, `g:brand`, and `g:availability` in the product feed.
 - **Google Product Category Cleaning:** Automatically cleans the Google product category string, removing any leading numbers and hyphens for better compatibility.
 
 ## Installation
