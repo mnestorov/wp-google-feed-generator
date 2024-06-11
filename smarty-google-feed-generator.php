@@ -189,6 +189,13 @@ if (!function_exists('smarty_generate_google_feed')) {
                             $item->addChild('g:google_product_category', htmlspecialchars($google_product_category), $gNamespace);
                         }
 
+                        // Add product categories
+                        $categories = wp_get_post_terms($product->get_id(), 'product_cat');
+                        if (!empty($categories) && !is_wp_error($categories)) {
+                            $category_names = array_map(function($term) { return $term->name; }, $categories);
+                            $item->addChild('product_type', htmlspecialchars(join(' > ', $category_names)), $gNamespace);
+                        }
+
                         // Check if the product has the "bundle" tag
                         $is_bundle = 'no';
                         $product_tags = wp_get_post_terms($product->get_id(), 'product_tag', array('fields' => 'slugs'));
@@ -197,12 +204,17 @@ if (!function_exists('smarty_generate_google_feed')) {
                         }
                         $item->addChild('g:is_bundle', $is_bundle, $gNamespace);
 
-                        // Add product categories
-                        $categories = wp_get_post_terms($product->get_id(), 'product_cat');
-                        if (!empty($categories) && !is_wp_error($categories)) {
-                            $category_names = array_map(function($term) { return $term->name; }, $categories);
-                            $item->addChild('product_type', htmlspecialchars(join(' > ', $category_names)), $gNamespace);
-                        }
+                        // Add availability
+                        $availability = $variation->is_in_stock() ? 'in_stock' : 'out_of_stock';
+                        $item->addChild('g:availability', $availability, $gNamespace);
+
+                        // Add condition
+                        $condition = 'new';
+                        $item->addChild('g:condition', $condition, $gNamespace);
+
+                        // Add brand
+                        $brand = get_bloginfo('name'); // Use the site name as the brand
+                        $item->addChild('g:brand', htmlspecialchars($brand), $gNamespace);
 
                         // Custom Labels
                         $item->addChild('g:custom_label_0', smarty_get_custom_label_0($product), $gNamespace);
@@ -237,6 +249,12 @@ if (!function_exists('smarty_generate_google_feed')) {
                         $item->addChild('g:google_product_category', htmlspecialchars($google_product_category), $gNamespace);
                     }
 
+                    // Add product categories
+                    $google_product_category = smarty_get_cleaned_google_product_category();
+                    if ($google_product_category) {
+                        $item->addChild('g:google_product_category', htmlspecialchars($google_product_category), $gNamespace);
+                    }
+
                     // Check if the product has the "bundle" tag
                     $is_bundle = 'no';
                     $product_tags = wp_get_post_terms($product->get_id(), 'product_tag', array('fields' => 'slugs'));
@@ -245,11 +263,17 @@ if (!function_exists('smarty_generate_google_feed')) {
                     }
                     $item->addChild('g:is_bundle', $is_bundle, $gNamespace);
 
-                    // Add product categories
-                    $google_product_category = smarty_get_cleaned_google_product_category();
-                    if ($google_product_category) {
-                        $item->addChild('g:google_product_category', htmlspecialchars($google_product_category), $gNamespace);
-                    }
+                    // Add availability
+                    $availability = $product->is_in_stock() ? 'in_stock' : 'out_of_stock';
+                    $item->addChild('g:availability', $availability, $gNamespace);
+
+                    // Add condition
+                    $condition = 'new';
+                    $item->addChild('g:condition', $condition, $gNamespace);
+
+                    // Add brand
+                    $brand = get_bloginfo('name'); // Use the site name as the brand
+                    $item->addChild('g:brand', htmlspecialchars($brand), $gNamespace);
 
                     // Custom Labels
                     $item->addChild('g:custom_label_0', smarty_get_custom_label_0($product), $gNamespace);
