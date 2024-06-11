@@ -953,8 +953,9 @@ if (!function_exists('smarty_feed_generator_register_settings')) {
         register_setting('smarty_feed_generator_settings', 'smarty_custom_label_0_older_than_value');
         register_setting('smarty_feed_generator_settings', 'smarty_custom_label_0_not_older_than_days');
         register_setting('smarty_feed_generator_settings', 'smarty_custom_label_0_not_older_than_value');
-        register_setting('smarty_feed_generator_settings', 'smarty_custom_label_2_most_ordered_days');
-        register_setting('smarty_feed_generator_settings', 'smarty_custom_label_2_most_ordered_value');
+        register_setting('smarty_feed_generator_settings', 'smarty_custom_label_1_most_ordered_days');
+        register_setting('smarty_feed_generator_settings', 'smarty_custom_label_1_most_ordered_value');
+        register_setting('smarty_feed_generator_settings', 'smarty_custom_label_2_high_rating_value');
         register_setting('smarty_feed_generator_settings', 'smarty_custom_label_3_category');
         register_setting('smarty_feed_generator_settings', 'smarty_custom_label_3_category_value');
         register_setting('smarty_feed_generator_settings', 'smarty_custom_label_4_sale_price_value');
@@ -1065,39 +1066,48 @@ if (!function_exists('smarty_feed_generator_register_settings')) {
         );
 
         add_settings_field(
-            'smarty_custom_label_1_not_older_than_days',
+            'smarty_custom_label_0_not_older_than_days',
             __('Not Older Than (Days)', 'smarty-google-feed-generator'),
             'smarty_custom_label_days_callback',
             'smarty_feed_generator_settings',
             'smarty_gfg_section_custom_labels',
-            ['label' => 'smarty_custom_label_1_not_older_than_days']
+            ['label' => 'smarty_custom_label_0_not_older_than_days']
         );
 
         add_settings_field(
-            'smarty_custom_label_1_not_older_than_value',
+            'smarty_custom_label_0_not_older_than_value',
             __('Not Older Than Value', 'smarty-google-feed-generator'),
             'smarty_custom_label_value_callback',
             'smarty_feed_generator_settings',
             'smarty_gfg_section_custom_labels',
-            ['label' => 'smarty_custom_label_1_not_older_than_value']
+            ['label' => 'smarty_custom_label_0_not_older_than_value']
         );
 
         add_settings_field(
-            'smarty_custom_label_2_most_ordered_days',
+            'smarty_custom_label_1_most_ordered_days',
             __('Most Ordered in Last (Days)', 'smarty-google-feed-generator'),
             'smarty_custom_label_days_callback',
             'smarty_feed_generator_settings',
             'smarty_gfg_section_custom_labels',
-            ['label' => 'smarty_custom_label_2_most_ordered_days']
+            ['label' => 'smarty_custom_label_1_most_ordered_days']
         );
 
         add_settings_field(
-            'smarty_custom_label_2_most_ordered_value',
+            'smarty_custom_label_1_most_ordered_value',
             __('Most Ordered Value', 'smarty-google-feed-generator'),
             'smarty_custom_label_value_callback',
             'smarty_feed_generator_settings',
             'smarty_gfg_section_custom_labels',
-            ['label' => 'smarty_custom_label_2_most_ordered_value']
+            ['label' => 'smarty_custom_label_1_most_ordered_value']
+        );
+
+        add_settings_field(
+            'smarty_custom_label_2_high_rating_value',
+            __('High Rating Value', 'smarty-google-feed-generator'),
+            'smarty_custom_label_value_callback',
+            'smarty_feed_generator_settings',
+            'smarty_gfg_section_custom_labels',
+            ['label' => 'smarty_custom_label_2_high_rating_value']
         );
 
         add_settings_field(
@@ -1484,7 +1494,7 @@ if (!function_exists('smarty_get_cleaned_google_product_category')) {
     }
 }
 
-// Custom Label 0 
+// Custom Label 0: Older Than X Days & Not Older Than Y Days
 function smarty_get_custom_label_0($product) {
     $date_created = $product->get_date_created();
     $now = new DateTime();
@@ -1506,33 +1516,40 @@ function smarty_get_custom_label_0($product) {
     return '';
 }
 
-// Custom Label 1
-function smarty_get_custom_label_1($product) {
-    return ''; // TODO
-}
-
-// Custom Label 2: Most Ordered in Last Z Days
+// Custom Label 1: Most Ordered in Last Z Days
 function smarty_get_custom_label_2($product) {
-    $most_ordered_days = get_option('smarty_custom_label_2_most_ordered_days', 30);
-    $most_ordered_value = get_option('smarty_custom_label_2_most_ordered_value', 'bestseller');
+    $most_ordered_days = get_option('smarty_custom_label_1_most_ordered_days', 30);
+    $most_ordered_value = get_option('smarty_custom_label_1_most_ordered_value', 'bestseller');
+
     $args = [
         'post_type'      => 'shop_order',
-        'post_status'    => 'wc-completed',
+        'post_status'    => ['wc-completed', 'wc-processing'],
         'posts_per_page' => -1,
         'date_query'     => [
             'after' => date('Y-m-d', strtotime("-$most_ordered_days days")),
         ],
-        'meta_query'     => [
-            [
-                'key'     => '_product_id',
-                'value'   => $product->get_id(),
-                'compare' => '=',
-            ],
-        ],
     ];
+
     $orders = get_posts($args);
-    if (count($orders) > 0) {
-        return $most_ordered_value;
+
+    foreach ($orders as $order_post) {
+        $order = wc_get_order($order_post->ID);
+        foreach ($order->get_items() as $item) {
+            if ($item->get_product_id() == $product->get_id() || $item->get_variation_id() == $product->get_id()) {
+                return $most_ordered_value;
+            }
+        }
+    }
+
+    return '';
+}
+
+// Custom Label 2: High Rating
+function smarty_get_custom_label_1($product) {
+    $average_rating = $product->get_average_rating();
+    $high_rating_value = get_option('smarty_custom_label_2_high_rating_value', 'high_rating');
+    if ($average_rating >= 4) {
+        return $high_rating_value;
     }
     return '';
 }
