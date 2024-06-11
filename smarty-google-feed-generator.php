@@ -183,6 +183,14 @@ if (!function_exists('smarty_generate_google_feed')) {
                             $item->addChild('sale_price', htmlspecialchars($variation->get_sale_price() . ' ' . get_woocommerce_currency()), $gNamespace);
                         }
 
+                        // Check if the product has the "bundle" tag
+                        $is_bundle = 'no';
+                        $product_tags = wp_get_post_terms($product->get_id(), 'product_tag', array('fields' => 'slugs'));
+                        if (in_array('bundle', $product_tags)) {
+                            $is_bundle = 'yes';
+                        }
+                        $item->addChild('g:is_bundle', $is_bundle, $gNamespace);
+
                         // Add product categories
                         $categories = wp_get_post_terms($product->get_id(), 'product_cat');
                         if (!empty($categories) && !is_wp_error($categories)) {
@@ -216,6 +224,14 @@ if (!function_exists('smarty_generate_google_feed')) {
                     if ($product->is_on_sale()) {
                         $item->addChild('sale_price', htmlspecialchars($product->get_sale_price() . ' ' . get_woocommerce_currency()), $gNamespace);
                     }
+
+                    // Check if the product has the "bundle" tag
+                    $is_bundle = 'no';
+                    $product_tags = wp_get_post_terms($product->get_id(), 'product_tag', array('fields' => 'slugs'));
+                    if (in_array('bundle', $product_tags)) {
+                        $is_bundle = 'yes';
+                    }
+                    $item->addChild('g:is_bundle', $is_bundle, $gNamespace);
 
                     // Add product categories
                     $categories = wp_get_post_terms($product->get_id(), 'product_cat');
@@ -524,7 +540,7 @@ if (!function_exists('smarty_generate_csv_export')) {
                     'Price'                   => $regular_price,
                     'Sale Price'              => $sale_price,
                     'Google Product Category' => $google_product_category,
-                    'Is Bundle'               => 'no',
+                    'Is Bundle'               => $is_bundle,
                     'MPN'                     => $sku,
                     'Availability'            => $availability,
                     'Condition'               => 'New',
