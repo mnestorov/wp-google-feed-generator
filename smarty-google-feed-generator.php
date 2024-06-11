@@ -183,6 +183,13 @@ if (!function_exists('smarty_generate_google_feed')) {
                             $item->addChild('sale_price', htmlspecialchars($variation->get_sale_price() . ' ' . get_woocommerce_currency()), $gNamespace);
                         }
 
+                        // Add product categories
+                        $categories = wp_get_post_terms($product->get_id(), 'product_cat');
+                        if (!empty($categories) && !is_wp_error($categories)) {
+                            $category_names = array_map(function($term) { return $term->name; }, $categories);
+                            $item->addChild('product_type', htmlspecialchars(join(' > ', $category_names)), $gNamespace);
+                        }
+
                         // Check if the product has the "bundle" tag
                         $is_bundle = 'no';
                         $product_tags = wp_get_post_terms($product->get_id(), 'product_tag', array('fields' => 'slugs'));
@@ -223,6 +230,12 @@ if (!function_exists('smarty_generate_google_feed')) {
 
                     if ($product->is_on_sale()) {
                         $item->addChild('sale_price', htmlspecialchars($product->get_sale_price() . ' ' . get_woocommerce_currency()), $gNamespace);
+                    }
+
+                    // Add Google Product Category
+                    $google_product_category = smarty_get_cleaned_google_product_category();
+                    if ($google_product_category) {
+                        $item->addChild('g:google_product_category', htmlspecialchars($google_product_category), $gNamespace);
                     }
 
                     // Check if the product has the "bundle" tag
