@@ -1494,84 +1494,104 @@ if (!function_exists('smarty_get_cleaned_google_product_category')) {
     }
 }
 
-// Custom Label 0: Older Than X Days & Not Older Than Y Days
-function smarty_get_custom_label_0($product) {
-    $date_created = $product->get_date_created();
-    $now = new DateTime();
-    
-    // Older Than X Days
-    $older_than_days = get_option('smarty_custom_label_0_older_than_days', 30);
-    $older_than_value = get_option('smarty_custom_label_0_older_than_value', 'established');
-    if ($date_created && $now->diff($date_created)->days > $older_than_days) {
-        return $older_than_value;
-    }
+if (!function_exists('smarty_get_custom_label_0')) {
+    /**
+     * Custom Label 0: Older Than X Days & Not Older Than Y Days
+     */ 
+    function smarty_get_custom_label_0($product) {
+        $date_created = $product->get_date_created();
+        $now = new DateTime();
+        
+        // Older Than X Days
+        $older_than_days = get_option('smarty_custom_label_0_older_than_days', 30);
+        $older_than_value = get_option('smarty_custom_label_0_older_than_value', 'established');
+        if ($date_created && $now->diff($date_created)->days > $older_than_days) {
+            return $older_than_value;
+        }
 
-    // Not Older Than Y Days
-    $not_older_than_days = get_option('smarty_custom_label_0_not_older_than_days', 30);
-    $not_older_than_value = get_option('smarty_custom_label_0_not_older_than_value', 'new');
-    if ($date_created && $now->diff($date_created)->days <= $not_older_than_days) {
-        return $not_older_than_value;
-    }
+        // Not Older Than Y Days
+        $not_older_than_days = get_option('smarty_custom_label_0_not_older_than_days', 30);
+        $not_older_than_value = get_option('smarty_custom_label_0_not_older_than_value', 'new');
+        if ($date_created && $now->diff($date_created)->days <= $not_older_than_days) {
+            return $not_older_than_value;
+        }
 
-    return '';
+        return '';
+    }
 }
 
-// Custom Label 1: Most Ordered in Last Z Days
-function smarty_get_custom_label_2($product) {
-    $most_ordered_days = get_option('smarty_custom_label_1_most_ordered_days', 30);
-    $most_ordered_value = get_option('smarty_custom_label_1_most_ordered_value', 'bestseller');
+if (!function_exists('smarty_get_custom_label_1')) {
+    /**
+     * Custom Label 1: Most Ordered in Last Z Days 
+     */ 
+    function smarty_get_custom_label_1($product) {
+        $most_ordered_days = get_option('smarty_custom_label_1_most_ordered_days', 30);
+        $most_ordered_value = get_option('smarty_custom_label_1_most_ordered_value', 'bestseller');
 
-    $args = [
-        'post_type'      => 'shop_order',
-        'post_status'    => ['wc-completed', 'wc-processing'],
-        'posts_per_page' => -1,
-        'date_query'     => [
-            'after' => date('Y-m-d', strtotime("-$most_ordered_days days")),
-        ],
-    ];
+        $args = [
+            'post_type'      => 'shop_order',
+            'post_status'    => ['wc-completed', 'wc-processing'],
+            'posts_per_page' => -1,
+            'date_query'     => [
+                'after' => date('Y-m-d', strtotime("-$most_ordered_days days")),
+            ],
+        ];
 
-    $orders = get_posts($args);
+        $orders = get_posts($args);
 
-    foreach ($orders as $order_post) {
-        $order = wc_get_order($order_post->ID);
-        foreach ($order->get_items() as $item) {
-            if ($item->get_product_id() == $product->get_id() || $item->get_variation_id() == $product->get_id()) {
-                return $most_ordered_value;
+        foreach ($orders as $order_post) {
+            $order = wc_get_order($order_post->ID);
+            foreach ($order->get_items() as $item) {
+                if ($item->get_product_id() == $product->get_id() || $item->get_variation_id() == $product->get_id()) {
+                    return $most_ordered_value;
+                }
             }
         }
-    }
 
-    return '';
+        return '';
+    }
 }
 
-// Custom Label 2: High Rating
-function smarty_get_custom_label_1($product) {
-    $average_rating = $product->get_average_rating();
-    $high_rating_value = get_option('smarty_custom_label_2_high_rating_value', 'high_rating');
-    if ($average_rating >= 4) {
-        return $high_rating_value;
+if (!function_exists('smarty_get_custom_label_2')) {
+    /**
+     * Custom Label 2: High Rating
+     */
+    function smarty_get_custom_label_2($product) {
+        $average_rating = $product->get_average_rating();
+        $high_rating_value = get_option('smarty_custom_label_2_high_rating_value', 'high_rating');
+        if ($average_rating >= 4) {
+            return $high_rating_value;
+        }
+        return '';
     }
-    return '';
 }
 
-// Custom Label 3: In Selected Category
-function smarty_get_custom_label_3($product) {
-    $selected_category = get_option('smarty_custom_label_3_category', []);
-    $selected_category_value = get_option('smarty_custom_label_3_category_value', 'category_selected');
-    $categories = wp_get_post_terms($product->get_id(), 'product_cat', ['fields' => 'ids']);
-    if (array_intersect($categories, $selected_category)) {
-        return $selected_category_value;
+if (!function_exists('smarty_get_custom_label_3')) {
+    /**
+     * Custom Label 3: In Selected Category
+     */
+    function smarty_get_custom_label_3($product) {
+        $selected_category = get_option('smarty_custom_label_3_category', []);
+        $selected_category_value = get_option('smarty_custom_label_3_category_value', 'category_selected');
+        $categories = wp_get_post_terms($product->get_id(), 'product_cat', ['fields' => 'ids']);
+        if (array_intersect($categories, $selected_category)) {
+            return $selected_category_value;
+        }
+        return '';
     }
-    return '';
 }
 
-// Custom Label 4: Has Sale Price
-function smarty_get_custom_label_4($product) {
-    $sale_price_value = get_option('smarty_custom_label_4_sale_price_value', 'on_sale');
-    if ($product->is_on_sale()) {
-        return $sale_price_value;
+if (!function_exists('smarty_get_custom_label_4')) {
+    /**
+     * Custom Label 4: Has Sale Price
+     */
+    function smarty_get_custom_label_4($product) {
+        $sale_price_value = get_option('smarty_custom_label_4_sale_price_value', 'on_sale');
+        if ($product->is_on_sale()) {
+            return $sale_price_value;
+        }
+        return '';
     }
-    return '';
 }
 
 function smarty_evaluate_criteria($product, $criteria) {
