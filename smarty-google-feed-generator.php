@@ -464,6 +464,13 @@ if (!function_exists('smarty_generate_csv_export')) {
             $custom_label_2 = smarty_get_custom_label_2($product);
             $custom_label_3 = smarty_get_custom_label_3($product);
             $custom_label_4 = smarty_get_custom_label_4($product);
+
+            // Check if the product has the "bundle" tag
+            $is_bundle = 'no';
+            $product_tags = wp_get_post_terms($product->get_id(), 'product_tag', array('fields' => 'slugs'));
+            if (in_array('bundle', $product_tags)) {
+                $is_bundle = 'yes';
+            }
             
             // Check for variable type to handle variations
             if ($product->is_type('variable')) {
@@ -490,7 +497,7 @@ if (!function_exists('smarty_generate_csv_export')) {
                         'Price'                   => $variation_price,
                         'Sale Price'              => $variation_sale_price,
                         'Google Product Category' => $google_product_category,
-                        'Is Bundle'               => 'no',
+                        'Is Bundle'               => $is_bundle,
                         'MPN'                     => $sku,
                         'Availability'            => $availability,
                         'Condition'               => 'New',
