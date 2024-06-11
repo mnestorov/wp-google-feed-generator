@@ -1620,13 +1620,36 @@ if (!function_exists('smarty_get_custom_label_3')) {
      * Custom Label 3: In Selected Category
      */
     function smarty_get_custom_label_3($product) {
-        $selected_category = get_option('smarty_custom_label_3_category', []);
-        $selected_category_value = get_option('smarty_custom_label_3_category_value', 'category_selected');
-        $categories = wp_get_post_terms($product->get_id(), 'product_cat', ['fields' => 'ids']);
-        if (array_intersect($categories, $selected_category)) {
-            return $selected_category_value;
+        // Retrieve selected categories and their values from options
+        $selected_categories = get_option('smarty_custom_label_3_category', []);
+        $selected_category_values = get_option('smarty_custom_label_3_category_value', 'category_selected');
+        
+        // Ensure selected categories and values are arrays
+        if (!is_array($selected_categories)) {
+            $selected_categories = explode(',', $selected_categories);
         }
-        return '';
+        if (!is_array($selected_category_values)) {
+            $selected_category_values = explode(',', $selected_category_values);
+        }
+
+        // Retrieve the product's categories
+        $product_categories = wp_get_post_terms($product->get_id(), 'product_cat', ['fields' => 'ids']);
+
+        // Initialize an array to hold the values to be returned
+        $matched_values = [];
+
+        // Check each selected category
+        foreach ($selected_categories as $index => $category) {
+            if (in_array($category, $product_categories)) {
+                // Add the corresponding value to the matched values array
+                if (isset($selected_category_values[$index])) {
+                    $matched_values[] = $selected_category_values[$index];
+                }
+            }
+        }
+
+        // Return the matched values as a comma-separated string
+        return implode(', ', $matched_values);
     }
 }
 
