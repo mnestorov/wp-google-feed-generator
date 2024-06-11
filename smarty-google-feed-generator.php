@@ -1644,10 +1644,44 @@ if (!function_exists('smarty_get_custom_label_4')) {
      * Custom Label 4: Has Sale Price
      */
     function smarty_get_custom_label_4($product) {
-        $sale_price_value = get_option('smarty_custom_label_4_sale_price_value', 'on_sale');
-        if ($product->is_on_sale()) {
-            return $sale_price_value;
+        $excluded_categories = get_option('smarty_excluded_categories', array()); // Get excluded categories from settings
+        $product_categories = wp_get_post_terms($product->get_id(), 'product_cat', array('fields' => 'ids'));
+
+        // Check if product is in excluded categories
+        $is_excluded = !empty(array_intersect($excluded_categories, $product_categories));
+
+        // Log debug information
+        error_log('Product ID: ' . $product->get_id());
+        error_log('Product is on sale: ' . ($product->is_on_sale() ? 'yes' : 'no'));
+        error_log('Product sale price: ' . $product->get_sale_price());
+        error_log('Excluded categories: ' . print_r($excluded_categories, true));
+        error_log('Product categories: ' . print_r($product_categories, true));
+        error_log('Is product excluded: ' . ($is_excluded ? 'yes' : 'no'));
+
+        if ($is_excluded) {
+            return '';
         }
+
+        // Handle single products
+        if ($product->is_type('simple')) {
+            if ($product->is_on_sale() && !empty($product->get_sale_price())) {
+                return get_option('smarty_custom_label_4_sale_price_value', 'on_sale');
+            }
+        }
+
+        // Handle variable products
+        if ($product->is_type('variable')) {
+            $variations = $product->get_children();
+            if (!empty($variations)) {
+                $first_variation_id = $variations[0]; // Check only the first variation
+                $variation = wc_get_product($first_variation_id);
+                error_log('First Variation ID: ' . $variation->get_id() . ' is on sale: ' . ($variation->is_on_sale() ? 'yes' : 'no') . ' Sale price: ' . $variation->get_sale_price());
+                if ($variation->is_on_sale() && !empty($variation->get_sale_price())) {
+                    return get_option('smarty_custom_label_4_sale_price_value', 'on_sale');
+                }
+            }
+        }
+
         return '';
     }
 }
