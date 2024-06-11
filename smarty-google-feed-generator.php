@@ -1340,6 +1340,31 @@ if (!function_exists('smarty_custom_label_value_callback')) {
     function smarty_custom_label_value_callback($args) {
         $option = get_option($args['label'], '');
         echo '<input type="text" name="' . esc_attr($args['label']) . '" value="' . esc_attr($option) . '" class="regular-text" />';
+
+        // Add custom descriptions based on the label
+        switch ($args['label']) {
+            case 'smarty_custom_label_0_older_than_value':
+                echo '<p class="description">Enter the value to label products older than the specified number of days.</p>';
+                break;
+            case 'smarty_custom_label_0_not_older_than_value':
+                echo '<p class="description">Enter the value to label products not older than the specified number of days.</p>';
+                break;
+            case 'smarty_custom_label_1_most_ordered_value':
+                echo '<p class="description">Enter the value to label the most ordered products in the last specified days.</p>';
+                break;
+            case 'smarty_custom_label_2_high_rating_value':
+                echo '<p class="description">Enter the value to label products with high ratings.</p>';
+                break;
+            case 'smarty_custom_label_3_category_value':
+                echo '<p class="description">Enter custom values for the categories separated by commas. Ensure these values are in the same order as the selected categories. <br><em><strong>Example:</strong> Tech,Apparel,Literature</em></p>';
+                break;
+            case 'smarty_custom_label_4_sale_price_value':
+                echo '<p class="description">Enter the value to label products with a sale price.</p>';
+                break;
+            default:
+                echo '<p class="description">Enter a custom value for this label.</p>';
+                break;
+        }
     }
 }
 
@@ -1356,8 +1381,12 @@ if (!function_exists('smarty_custom_label_category_callback')) {
             echo '<option value="' . esc_attr($category->term_id) . '" ' . (in_array($category->term_id, (array) $option) ? 'selected' : '') . '>' . esc_html($category->name) . '</option>';
         }
         echo '</select>';
+
+        // Add description for the category selection
+        if ($args['label'] === 'smarty_custom_label_3_category') {
+            echo '<p class="description">Ensure the values for each category are entered in the same order in the Category Value field.</p>';
+        }
     }
-    add_action('admin_init', 'smarty_feed_generator_register_settings');
 }
 
 if (!function_exists('smarty_convert_images_button_callback')) {
