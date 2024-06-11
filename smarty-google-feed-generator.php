@@ -83,13 +83,14 @@ if (!function_exists('smarty_feed_generator_template_redirect')) {
     add_action('template_redirect', 'smarty_feed_generator_template_redirect');
 }
 
+/*
 if (!function_exists('smarty_generate_google_feed')) {
     /**
      * Generates the custom Google product feed.
      * 
      * This function is designed to generate a custom Google product feed for WooCommerce products. 
      * It uses WordPress and WooCommerce functions to build an XML feed that conforms to Google's specifications for product feeds.
-     */
+     *
     function smarty_generate_google_feed() {
         // Start output buffering to prevent any unwanted output
         ob_start();
@@ -310,14 +311,228 @@ if (!function_exists('smarty_generate_google_feed')) {
     }
     add_action('smarty_generate_google_feed', 'smarty_generate_google_feed');
 }
+*/
 
+if (!function_exists('smarty_generate_google_feed')) {
+    /**
+     * Generates the custom Google product feed.
+     * 
+     * This function is designed to generate a custom Google product feed for WooCommerce products. 
+     * It uses WordPress and WooCommerce functions to build an XML feed that conforms to Google's specifications for product feeds.
+     */
+    function smarty_generate_google_feed() {
+        // Start output buffering to prevent any unwanted output
+        ob_start();
+
+        // Set the content type to XML for the output
+        header('Content-Type: application/xml; charset=utf-8');
+
+        // Check if the clear cache option is enabled
+        if (get_option('smarty_clear_cache')) {
+            delete_transient('smarty_google_feed');
+        }
+
+        // Attempt to retrieve the cached version of the feed
+        $cached_feed = get_transient('smarty_google_feed');
+        if ($cached_feed !== false) {
+            echo $cached_feed; // Output the cached feed and stop processing if it exists
+            ob_end_flush();
+            exit;
+        }
+
+        // Check if WooCommerce is active before proceeding
+        if (class_exists('WooCommerce')) {
+            // Get excluded categories from settings
+            $excluded_categories = get_option('smarty_excluded_categories', array());
+            //error_log('Excluded Categories: ' . print_r($excluded_categories, true));
+
+            // Set up arguments for querying products, excluding certain categories
+            $args = array(
+                'status'       => 'publish',              // Only fetch published products
+                'stock_status' => 'instock',              // Only fetch products that are in stock
+                'limit'        => -1,                     // Fetch all products that match criteria
+                'orderby'      => 'date',                 // Order by date
+                'order'        => 'DESC',                 // In descending order
+                'type'         => ['simple', 'variable'], // Fetch both simple and variable products
+                'tax_query'    => array(
+                    array(
+                        'taxonomy' => 'product_cat',
+                        'field'    => 'term_id',
+                        'terms'    => $excluded_categories,
+                        'operator' => 'NOT IN',
+                    ),
+                ),
+            );
+
+            // Fetch products using WooCommerce function
+            $products = wc_get_products($args);
+            //error_log('Product Query Args: ' . print_r($args, true));
+            //error_log('Products: ' . print_r($products, true));
+
+            // Initialize the XML structure
+            $dom = new DOMDocument('1.0', 'UTF-8');
+            $dom->formatOutput = true;
+
+            // Create the root <feed> element
+            $feed = $dom->createElement('feed');
+            $feed->setAttribute('xmlns', 'http://www.w3.org/2005/Atom');
+            $feed->setAttribute('xmlns:g', 'http://base.google.com/ns/1.0');
+            $dom->appendChild($feed);
+
+            // Loop through each product to add details to the feed
+            foreach ($products as $product) {
+                //error_log('Processing Product: ' . print_r($product->get_data(), true));
+                if ($product->is_type('variable')) {
+                    // Get all variations if product is variable
+                    $variations = $product->get_children();
+
+                    if (!empty($variations)) {
+                        $first_variation_id = $variations[0]; // Process only the first variation for the feed
+                        $variation = wc_get_product($first_variation_id);
+                        $item = $dom->createElement('item'); // Add item node for each product
+                        $feed->appendChild($item);
+
+                        // Add product details as child nodes
+                        addGoogleProductDetails($dom, $item, $product, $variation);
+                    }
+                } else {
+                    // Process simple products similarly
+                    $item = $dom->createElement('item');
+                    $feed->appendChild($item);
+
+                    // Add product details as child nodes
+                    addGoogleProductDetails($dom, $item, $product);
+                }
+            }
+
+            // Save and output the XML
+            $feed_content = $dom->saveXML();
+            //error_log('Feed Content: ' . $feed_content);
+
+            if ($feed_content) {
+                $cache_duration = get_option('smarty_cache_duration', 12); // Default to 12 hours if not set
+                set_transient('smarty_google_feed', $feed_content, $cache_duration * HOUR_IN_SECONDS);
+
+                echo $feed_content;
+                ob_end_flush();
+                exit; // Ensure the script stops here to prevent further output that could corrupt the feed
+            } else {
+                ob_end_clean();
+                //error_log('Failed to generate feed content.');
+                echo '<error>Failed to generate feed content.</error>';
+                exit;
+            }
+        } else {
+            ob_end_clean();
+            echo '<error>WooCommerce is not active.</error>';
+            exit;
+        }
+    }
+    add_action('smarty_generate_google_feed', 'smarty_generate_google_feed');
+}
+
+/**
+ * Adds Google product details to the XML item node.
+ *
+ * @param DOMDocument $dom The DOMDocument instance.
+ * @param DOMElement $item The item element to which details are added.
+ * @param WC_Product $product The WooCommerce product instance.
+ * @param WC_Product $variation Optional. The variation instance if the product is variable.
+ */
+function addGoogleProductDetails($dom, $item, $product, $variation = null) {
+    $gNamespace = 'http://base.google.com/ns/1.0';
+
+    if ($variation) {
+        $id = $variation->get_id();
+        $sku = $variation->get_sku();
+        $price = $variation->get_regular_price();
+        $sale_price = $variation->get_sale_price();
+        $image_id = $variation->get_image_id() ? $variation->get_image_id() : $product->get_image_id();
+        $is_on_sale = $variation->is_on_sale();
+        $is_in_stock = $variation->is_in_stock();
+    } else {
+        $id = $product->get_id();
+        $sku = $product->get_sku();
+        $price = $product->get_price();
+        $sale_price = $product->get_sale_price();
+        $image_id = $product->get_image_id();
+        $is_on_sale = $product->is_on_sale();
+        $is_in_stock = $product->is_in_stock();
+    }
+
+    $item->appendChild($dom->createElementNS($gNamespace, 'g:id', $id));
+    $item->appendChild($dom->createElementNS($gNamespace, 'g:sku', $sku));
+    $item->appendChild($dom->createElementNS($gNamespace, 'title', htmlspecialchars($product->get_name())));
+    $item->appendChild($dom->createElementNS($gNamespace, 'link', get_permalink($product->get_id())));
+
+    // Add description, using meta description if available or fallback to short description
+    $meta_description = get_post_meta($product->get_id(), get_option('smarty_meta_description_field', 'meta-description'), true);
+    $description = !empty($meta_description) ? $meta_description : $product->get_short_description();
+    $item->appendChild($dom->createElementNS($gNamespace, 'description', htmlspecialchars(strip_tags($description))));
+
+    // Add image links
+    $item->appendChild($dom->createElementNS($gNamespace, 'image_link', wp_get_attachment_url($image_id)));
+
+    // Add additional images
+    $gallery_ids = $product->get_gallery_image_ids();
+    foreach ($gallery_ids as $gallery_id) {
+        $item->appendChild($dom->createElementNS($gNamespace, 'additional_image_link', wp_get_attachment_url($gallery_id)));
+    }
+
+    // Add price details
+    $item->appendChild($dom->createElementNS($gNamespace, 'price', htmlspecialchars($price . ' ' . get_woocommerce_currency())));
+    if ($is_on_sale) {
+        $item->appendChild($dom->createElementNS($gNamespace, 'sale_price', htmlspecialchars($sale_price . ' ' . get_woocommerce_currency())));
+    }
+
+    // Add product categories
+    $google_product_category = smarty_get_cleaned_google_product_category();
+    if ($google_product_category) {
+        $item->appendChild($dom->createElementNS($gNamespace, 'g:google_product_category', htmlspecialchars($google_product_category)));
+    }
+
+    // Add product categories
+    $categories = wp_get_post_terms($product->get_id(), 'product_cat');
+    if (!empty($categories) && !is_wp_error($categories)) {
+        $category_names = array_map(function($term) { return $term->name; }, $categories);
+        $item->appendChild($dom->createElementNS($gNamespace, 'product_type', htmlspecialchars(join(' > ', $category_names))));
+    }
+
+    // Check if the product has the "bundle" tag
+    $is_bundle = 'no';
+    $product_tags = wp_get_post_terms($product->get_id(), 'product_tag', array('fields' => 'slugs'));
+    if (in_array('bundle', $product_tags)) {
+        $is_bundle = 'yes';
+    }
+    $item->appendChild($dom->createElementNS($gNamespace, 'g:is_bundle', $is_bundle));
+
+    // Add availability
+    $availability = $is_in_stock ? 'in_stock' : 'out_of_stock';
+    $item->appendChild($dom->createElementNS($gNamespace, 'g:availability', $availability));
+
+    // Add condition
+    $item->appendChild($dom->createElementNS($gNamespace, 'g:condition', 'new'));
+
+    // Add brand
+    $brand = get_bloginfo('name'); // Use the site name as the brand
+    $item->appendChild($dom->createElementNS($gNamespace, 'g:brand', htmlspecialchars($brand)));
+
+    // Custom Labels
+    $item->appendChild($dom->createElementNS($gNamespace, 'g:custom_label_0', smarty_get_custom_label_0($product)));
+    $item->appendChild($dom->createElementNS($gNamespace, 'g:custom_label_1', smarty_get_custom_label_1($product)));
+    $item->appendChild($dom->createElementNS($gNamespace, 'g:custom_label_2', smarty_get_custom_label_2($product)));
+    $item->appendChild($dom->createElementNS($gNamespace, 'g:custom_label_3', smarty_get_custom_label_3($product)));
+    $item->appendChild($dom->createElementNS($gNamespace, 'g:custom_label_4', smarty_get_custom_label_4($product)));
+}
+
+/*
 if (!function_exists('smarty_generate_google_reviews_feed')) {
     /**
      * Generates the custom Google product review feed.
      * 
      * This function retrieves all the products and their reviews from a WooCommerce store and constructs
      * an XML feed that adheres to Google's specifications for review feeds.
-     */
+     *
     function smarty_generate_google_reviews_feed() {
         // Set the content type to XML for the output
         header('Content-Type: application/xml; charset=utf-8');
@@ -362,6 +577,70 @@ if (!function_exists('smarty_generate_google_reviews_feed')) {
 
         // Output the final XML content
         echo $xml->asXML();
+        exit; // Ensure the script stops here to prevent further output that could corrupt the feed
+    }
+    add_action('smarty_generate_google_reviews_feed', 'smarty_generate_google_reviews_feed'); // the first one is event
+}
+*/
+
+if (!function_exists('smarty_generate_google_reviews_feed')) {
+    /**
+     * Generates the custom Google product review feed.
+     * 
+     * This function retrieves all the products and their reviews from a WooCommerce store and constructs
+     * an XML feed that adheres to Google's specifications for review feeds.
+     */
+    function smarty_generate_google_reviews_feed() {
+        // Set the content type to XML for the output
+        header('Content-Type: application/xml; charset=utf-8');
+
+        // Arguments for fetching all products; this query can be modified to exclude certain products or categories if needed
+        $args = array(
+            'post_type' => 'product',
+            'numberposts' => -1, // Retrieve all products; adjust based on server performance or specific needs
+        );
+
+        // Retrieve products using WordPress get_posts function based on the defined arguments
+        $products = get_posts($args);
+
+        // Initialize the XML structure
+        $dom = new DOMDocument('1.0', 'UTF-8');
+        $dom->formatOutput = true;
+
+        // Create the root <feed> element
+        $feed = $dom->createElement('feed');
+        $feed->setAttribute('xmlns:g', 'http://base.google.com/ns/1.0');
+        $dom->appendChild($feed);
+
+        // Iterate through each product to process its reviews
+        foreach ($products as $product) {
+            // Fetch all reviews for the current product. Only approved reviews are fetched
+            $reviews = get_comments(array('post_id' => $product->ID));
+
+            // Define the namespace URL for elements specific to Google feeds
+            $gNamespace = 'http://base.google.com/ns/1.0';
+
+            // Iterate through each review of the current product
+            foreach ($reviews as $review) {
+                if ($review->comment_approved == '1') { // Check if the review is approved before including it in the feed
+                    // Create a new 'entry' element for each review
+                    $entry = $dom->createElement('entry');
+                    $feed->appendChild($entry);
+
+                    // Add various child elements required by Google, ensuring data is properly escaped to avoid XML errors
+                    $entry->appendChild($dom->createElementNS($gNamespace, 'g:id', htmlspecialchars(get_the_product_sku($product->ID))));
+                    $entry->appendChild($dom->createElementNS($gNamespace, 'g:title', htmlspecialchars($product->post_title)));
+                    $entry->appendChild($dom->createElementNS($gNamespace, 'g:content', htmlspecialchars($review->comment_content)));
+                    $entry->appendChild($dom->createElementNS($gNamespace, 'g:reviewer', htmlspecialchars($review->comment_author)));
+                    $entry->appendChild($dom->createElementNS($gNamespace, 'g:review_date', date('Y-m-d', strtotime($review->comment_date))));
+                    $entry->appendChild($dom->createElementNS($gNamespace, 'g:rating', get_comment_meta($review->comment_ID, 'rating', true)));
+                    // Add more fields as required by Google
+                }
+            }
+        }
+
+        // Output the final XML content
+        echo $dom->saveXML();
         exit; // Ensure the script stops here to prevent further output that could corrupt the feed
     }
     add_action('smarty_generate_google_reviews_feed', 'smarty_generate_google_reviews_feed'); // the first one is event
