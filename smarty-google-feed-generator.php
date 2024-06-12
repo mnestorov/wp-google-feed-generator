@@ -1785,6 +1785,9 @@ if (!function_exists('smarty_get_custom_label_3')) {
             }
         }
 
+        // Remove duplicates
+        $matched_values = array_unique($matched_values);
+
         // Return the matched values as a comma-separated string
         return implode(', ', $matched_values);
     }
