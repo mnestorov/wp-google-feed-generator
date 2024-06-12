@@ -986,33 +986,60 @@ if (!function_exists('smarty_feed_generator_add_settings_page')) {
     add_action('admin_menu', 'smarty_feed_generator_add_settings_page');
 }
 
+if (!function_exists('smarty_sanitize_text_field')) {
+    function smarty_sanitize_text_field($input) {
+        return sanitize_text_field($input);
+    }
+}
+
+if (!function_exists('smarty_sanitize_textarea_field')) {
+    function smarty_sanitize_textarea_field($input) {
+        return sanitize_textarea_field($input);
+    }
+}
+
+if (!function_exists('smarty_sanitize_checkbox')) {
+    function smarty_sanitize_checkbox($input) {
+        return $input == 1 ? 1 : 0;
+    }
+}
+
+if (!function_exists('smarty_sanitize_number_field')) {
+    function smarty_sanitize_number_field($input) {
+        return absint($input);
+    }
+}
+
 if (!function_exists('smarty_feed_generator_register_settings')) {
     /**
      * Register plugin settings.
      */
     function smarty_feed_generator_register_settings() {
-        // Register settings
+        // General Settings
         register_setting('smarty_feed_generator_settings', 'smarty_google_product_category');
-        register_setting('smarty_feed_generator_settings', 'smarty_google_category_as_id');
-        register_setting('smarty_feed_generator_settings', 'smarty_exclude_patterns');
+        register_setting('smarty_feed_generator_settings', 'smarty_google_category_as_id', 'smarty_sanitize_checkbox');
+        register_setting('smarty_feed_generator_settings', 'smarty_exclude_patterns', 'smarty_sanitize_textarea_field');
         register_setting('smarty_feed_generator_settings', 'smarty_excluded_categories');
         
-        // Register settings for each criteria
-        register_setting('smarty_feed_generator_settings', 'smarty_custom_label_0_older_than_days');
-        register_setting('smarty_feed_generator_settings', 'smarty_custom_label_0_older_than_value');
-        register_setting('smarty_feed_generator_settings', 'smarty_custom_label_0_not_older_than_days');
-        register_setting('smarty_feed_generator_settings', 'smarty_custom_label_0_not_older_than_value');
-        register_setting('smarty_feed_generator_settings', 'smarty_custom_label_1_most_ordered_days');
-        register_setting('smarty_feed_generator_settings', 'smarty_custom_label_1_most_ordered_value');
-        register_setting('smarty_feed_generator_settings', 'smarty_custom_label_2_high_rating_value');
+        // Custom Label Settings
+        register_setting('smarty_feed_generator_settings', 'smarty_custom_label_0_older_than_days', 'smarty_sanitize_number_field');
+        register_setting('smarty_feed_generator_settings', 'smarty_custom_label_0_older_than_value', 'smarty_sanitize_text_field');
+        register_setting('smarty_feed_generator_settings', 'smarty_custom_label_0_not_older_than_days', 'smarty_sanitize_number_field');
+        register_setting('smarty_feed_generator_settings', 'smarty_custom_label_0_not_older_than_value', 'smarty_sanitize_text_field');
+        register_setting('smarty_feed_generator_settings', 'smarty_custom_label_1_most_ordered_days', 'smarty_sanitize_number_field');
+        register_setting('smarty_feed_generator_settings', 'smarty_custom_label_1_most_ordered_value', 'smarty_sanitize_text_field');
+        register_setting('smarty_feed_generator_settings', 'smarty_custom_label_2_high_rating_value', 'smarty_sanitize_text_field');
         register_setting('smarty_feed_generator_settings', 'smarty_custom_label_3_category');
-        register_setting('smarty_feed_generator_settings', 'smarty_custom_label_3_category_value');
-        register_setting('smarty_feed_generator_settings', 'smarty_custom_label_4_sale_price_value');
+        register_setting('smarty_feed_generator_settings', 'smarty_custom_label_3_category_value', 'smarty_sanitize_category_values');
+        register_setting('smarty_feed_generator_settings', 'smarty_custom_label_4_sale_price_value', 'smarty_sanitize_text_field');
 
-        register_setting('smarty_feed_generator_settings', 'smarty_meta_title_field');
-        register_setting('smarty_feed_generator_settings', 'smarty_meta_description_field');
-        register_setting('smarty_feed_generator_settings', 'smarty_clear_cache');
-        register_setting('smarty_feed_generator_settings', 'smarty_cache_duration');
+        // Meta Fields
+        register_setting('smarty_feed_generator_settings', 'smarty_meta_title_field', 'smarty_sanitize_text_field');
+        register_setting('smarty_feed_generator_settings', 'smarty_meta_description_field', 'smarty_sanitize_text_field');
+        
+        // Cache Settings
+        register_setting('smarty_feed_generator_settings', 'smarty_clear_cache', 'smarty_sanitize_checkbox');
+        register_setting('smarty_feed_generator_settings', 'smarty_cache_duration', 'smarty_sanitize_number_field');
 
         // Add General section
         add_settings_section(
@@ -1579,19 +1606,17 @@ if (!function_exists('smarty_sanitize_category_values')) {
     function smarty_sanitize_category_values($input) {
         // Check if the input is an array
         if (is_array($input)) {
-            return array_map('trim', $input);
+            return array_map('sanitize_text_field', array_map('trim', $input));
         } else {
             // If the input is a string, split it by commas, trim each value, and return as a comma-separated string
             $values = explode(',', $input);
-            $values = array_map('trim', $values);
+            $values = array_map('sanitize_text_field', array_map('trim', $values));
             return implode(', ', $values);
         }
-    }
-    // Add the sanitization callback when registering the setting
-    add_filter('pre_update_option_smarty_custom_label_3_category_value', 'smarty_sanitize_category_values');    
+    }  
 }
 
-if (!function_exists('smarty_sanitize_category_values')) {
+if (!function_exists('smarty_display_category_values_field')) {
     /**
      * Display the settings field with the values properly trimmed.
      */
