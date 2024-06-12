@@ -55,4 +55,28 @@ jQuery(document).ready(function($) {
     $('.smarty-excluded-categories').select2({
         width: '100%' // need to override the changed default
     });
+
+    // Initialize Select2 with AJAX for the Google Product Category select element
+    $('.smarty-select2-ajax').select2({
+        ajax: {
+            url: smartyFeedGenerator.ajaxUrl,
+            dataType: 'json',
+            delay: 250,
+            data: function (params) {
+                return {
+                    q: params.term, // search term
+                    action: 'smarty_load_google_categories',
+                    nonce: smartyFeedGenerator.nonce
+                };
+            },
+            processResults: function (data) {
+                return {
+                    results: data.data
+                };
+            },
+            cache: true
+        },
+        minimumInputLength: 1,
+        width: 'resolve'
+    });
 });

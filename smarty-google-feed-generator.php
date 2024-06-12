@@ -1124,92 +1124,92 @@ if (!function_exists('smarty_feed_generator_register_settings')) {
         
         // Add settings fields for each criteria
         add_settings_field(
-            'smarty_custom_label_0_older_than_days',
-            __('Older Than (Days)', 'smarty-google-feed-generator'),
-            'smarty_custom_label_days_callback',
-            'smarty_feed_generator_settings',
-            'smarty_gfg_section_custom_labels',
+            'smarty_custom_label_0_older_than_days',                        // ID of the field
+            __('Older Than (Days)', 'smarty-google-feed-generator'),        // Title of the field
+            'smarty_custom_label_days_callback',                            // Callback function to display the field
+            'smarty_feed_generator_settings',                               // Page on which to add the field
+            'smarty_gfg_section_custom_labels',                             // Section to which this field belongs
             ['label' => 'smarty_custom_label_0_older_than_days']
         );
 
         add_settings_field(
-            'smarty_custom_label_0_older_than_value',
-            __('Older Than Value', 'smarty-google-feed-generator'),
-            'smarty_custom_label_value_callback',
-            'smarty_feed_generator_settings',
-            'smarty_gfg_section_custom_labels',
+            'smarty_custom_label_0_older_than_value',                       // ID of the field
+            __('Older Than Value', 'smarty-google-feed-generator'),         // Title of the field
+            'smarty_custom_label_value_callback',                           // Callback function to display the field
+            'smarty_feed_generator_settings',                               // Page on which to add the field
+            'smarty_gfg_section_custom_labels',                             // Section to which this field belongs
             ['label' => 'smarty_custom_label_0_older_than_value']
         );
 
         add_settings_field(
-            'smarty_custom_label_0_not_older_than_days',
-            __('Not Older Than (Days)', 'smarty-google-feed-generator'),
-            'smarty_custom_label_days_callback',
-            'smarty_feed_generator_settings',
-            'smarty_gfg_section_custom_labels',
+            'smarty_custom_label_0_not_older_than_days',                    // ID of the field
+            __('Not Older Than (Days)', 'smarty-google-feed-generator'),    // Title of the field
+            'smarty_custom_label_days_callback',                            // Callback function to display the field
+            'smarty_feed_generator_settings',                               // Page on which to add the field
+            'smarty_gfg_section_custom_labels',                             // Section to which this field belongs
             ['label' => 'smarty_custom_label_0_not_older_than_days']
         );
 
         add_settings_field(
-            'smarty_custom_label_0_not_older_than_value',
-            __('Not Older Than Value', 'smarty-google-feed-generator'),
-            'smarty_custom_label_value_callback',
-            'smarty_feed_generator_settings',
-            'smarty_gfg_section_custom_labels',
+            'smarty_custom_label_0_not_older_than_value',                   // ID of the field
+            __('Not Older Than Value', 'smarty-google-feed-generator'),     // Title of the field
+            'smarty_custom_label_value_callback',                           // Callback function to display the field
+            'smarty_feed_generator_settings',                               // Page on which to add the field
+            'smarty_gfg_section_custom_labels',                             // Section to which this field belongs
             ['label' => 'smarty_custom_label_0_not_older_than_value']
         );
 
         add_settings_field(
-            'smarty_custom_label_1_most_ordered_days',
-            __('Most Ordered in Last (Days)', 'smarty-google-feed-generator'),
-            'smarty_custom_label_days_callback',
-            'smarty_feed_generator_settings',
-            'smarty_gfg_section_custom_labels',
+            'smarty_custom_label_1_most_ordered_days',                          // ID of the field
+            __('Most Ordered in Last (Days)', 'smarty-google-feed-generator'),  // Title of the field
+            'smarty_custom_label_days_callback',                                // Callback function to display the field
+            'smarty_feed_generator_settings',                                   // Page on which to add the field
+            'smarty_gfg_section_custom_labels',                                 // Section to which this field belongs
             ['label' => 'smarty_custom_label_1_most_ordered_days']
         );
 
         add_settings_field(
-            'smarty_custom_label_1_most_ordered_value',
-            __('Most Ordered Value', 'smarty-google-feed-generator'),
-            'smarty_custom_label_value_callback',
-            'smarty_feed_generator_settings',
-            'smarty_gfg_section_custom_labels',
+            'smarty_custom_label_1_most_ordered_value',                     // ID of the field
+            __('Most Ordered Value', 'smarty-google-feed-generator'),       // Title of the field
+            'smarty_custom_label_value_callback',                           // Callback function to display the field
+            'smarty_feed_generator_settings',                               // Page on which to add the field
+            'smarty_gfg_section_custom_labels',                             // Section to which this field belongs
             ['label' => 'smarty_custom_label_1_most_ordered_value']
         );
 
         add_settings_field(
-            'smarty_custom_label_2_high_rating_value',
-            __('High Rating Value', 'smarty-google-feed-generator'),
-            'smarty_custom_label_value_callback',
-            'smarty_feed_generator_settings',
-            'smarty_gfg_section_custom_labels',
+            'smarty_custom_label_2_high_rating_value',                      // ID of the field
+            __('High Rating Value', 'smarty-google-feed-generator'),        // Title of the field
+            'smarty_custom_label_value_callback',                           // Callback function to display the field
+            'smarty_feed_generator_settings',                               // Page on which to add the field
+            'smarty_gfg_section_custom_labels',                             // Section to which this field belongs
             ['label' => 'smarty_custom_label_2_high_rating_value']
         );
 
         add_settings_field(
-            'smarty_custom_label_3_category',
-            __('Category', 'smarty-google-feed-generator'),
-            'smarty_custom_label_category_callback',
-            'smarty_feed_generator_settings',
-            'smarty_gfg_section_custom_labels',
+            'smarty_custom_label_3_category',                               // ID of the field
+            __('Category', 'smarty-google-feed-generator'),                 // Title of the field
+            'smarty_custom_label_category_callback',                        // Callback function to display the field
+            'smarty_feed_generator_settings',                               // Page on which to add the field
+            'smarty_gfg_section_custom_labels',                             // Section to which this field belongs
             ['label' => 'smarty_custom_label_3_category']
         );
 
         add_settings_field(
-            'smarty_custom_label_3_category_value',
-            __('Category Value', 'smarty-google-feed-generator'),
-            'smarty_custom_label_value_callback',
-            'smarty_feed_generator_settings',
-            'smarty_gfg_section_custom_labels',
+            'smarty_custom_label_3_category_value',                         // ID of the field
+            __('Category Value', 'smarty-google-feed-generator'),           // Title of the field
+            'smarty_custom_label_value_callback',                           // Callback function to display the field
+            'smarty_feed_generator_settings',                               // Page on which to add the field
+            'smarty_gfg_section_custom_labels',                             // Section to which this field belongs
             ['label' => 'smarty_custom_label_3_category_value']
         );
 
         add_settings_field(
-            'smarty_custom_label_4_sale_price_value',
-            __('Sale Price Value', 'smarty-google-feed-generator'),
-            'smarty_custom_label_value_callback',
-            'smarty_feed_generator_settings',
-            'smarty_gfg_section_custom_labels',
+            'smarty_custom_label_4_sale_price_value',                       // ID of the field
+            __('Sale Price Value', 'smarty-google-feed-generator'),         // Title of the field
+            'smarty_custom_label_value_callback',                           // Callback function to display the field
+            'smarty_feed_generator_settings',                               // Page on which to add the field
+            'smarty_gfg_section_custom_labels',                             // Section to which this field belongs
             ['label' => 'smarty_custom_label_4_sale_price_value']
         );
 
@@ -1273,6 +1273,45 @@ if (!function_exists('smarty_gfg_section_general_callback')) {
     }
 }
 
+if (!function_exists('smarty_google_product_category_callback')) {
+    if (!function_exists('smarty_google_product_category_callback')) {
+        function smarty_google_product_category_callback() {
+            $option = get_option('smarty_google_product_category');
+            echo '<select name="smarty_google_product_category" class="smarty-select2-ajax">';
+            if ($option) {
+                echo '<option value="' . esc_attr($option) . '" selected>' . esc_html($option) . '</option>';
+            }
+            echo '</select>';
+        }
+    }    
+}
+
+if (!function_exists('smarty_load_google_categories')) {
+    /**
+     * AJAX handler to load Google Product Categories.
+     */
+    function smarty_load_google_categories() {
+        check_ajax_referer('smarty_feed_generator_nonce', 'nonce');
+
+        if (!current_user_can('manage_options')) {
+            wp_send_json_error('You do not have sufficient permissions to access this page.');
+        }
+
+        $search = sanitize_text_field($_GET['q']);
+        $google_categories = smarty_get_google_product_categories();
+
+        $results = array();
+        foreach ($google_categories as $category) {
+            if (stripos($category, $search) !== false) {
+                $results[] = array('id' => $category, 'text' => $category);
+            }
+        }
+
+        wp_send_json_success($results);
+    }
+    add_action('wp_ajax_smarty_load_google_categories', 'smarty_load_google_categories');
+}
+
 if (!function_exists('smarty_google_category_as_id_callback')) {
     function smarty_google_category_as_id_callback() {
         $option = get_option('smarty_google_category_as_id');
@@ -1311,18 +1350,6 @@ if (!function_exists('smarty_gfg_section_settings_callback')) {
     }
 }
 
-if (!function_exists('smarty_google_product_category_callback')) {
-    function smarty_google_product_category_callback() {
-        $google_categories = smarty_get_google_product_categories();
-        $option = get_option('smarty_google_product_category');
-        echo '<select name="smarty_google_product_category">';
-        foreach ($google_categories as $category) {
-            echo '<option value="' . esc_attr($category) . '" ' . selected($option, $category, false) . '>' . esc_html($category) . '</option>';
-        }
-        echo '</select>';
-    }
-}
-
 if (!function_exists('smarty_exclude_patterns_callback')) {
     function smarty_exclude_patterns_callback() {
         $option = get_option('smarty_exclude_patterns');
@@ -1342,7 +1369,7 @@ if (!function_exists('smarty_excluded_categories_callback')) {
             'hide_empty' => false,
         ));
 
-        echo '<select name="smarty_excluded_categories[]" multiple="multiple" class="smarty-excluded-categories">';
+        echo '<select name="smarty_excluded_categories[]" multiple="multiple" class="smarty-excluded-categories" style="width:50%;">';
         foreach ($categories as $category) {
             echo '<option value="' . esc_attr($category->term_id) . '" ' . (in_array($category->term_id, (array)$option) ? 'selected' : '') . '>' . esc_html($category->name) . '</option>';
         }

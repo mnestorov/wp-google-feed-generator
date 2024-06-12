@@ -1,9 +1,13 @@
 /* Change width of the Exclude Patterns textarea */
-textarea[name="smarty_exclude_patterns"] {
-    width: 100% !important;
+textarea[name="smarty_exclude_patterns"].large-text {
+    width: 50% !important;
 }
 
 /* Fix width of Select2 field */
+.select2.select2-container.select2-container--default {
+	width: 50% !important;
+}
+
 .select2-container--default .select2-selection--multiple .select2-selection__choice {
     float: left;
     margin-top: 5px;
