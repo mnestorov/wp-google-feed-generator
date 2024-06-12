@@ -1356,7 +1356,7 @@ if (!function_exists('smarty_custom_label_value_callback')) {
                 echo '<p class="description">Enter the value to label products with high ratings.</p>';
                 break;
             case 'smarty_custom_label_3_category_value':
-                echo '<p class="description">Enter custom values for the categories separated by commas. Ensure these values are in the same order as the selected categories. <br><em><strong>Example:</strong> Tech,Apparel,Literature</em></p>';
+                echo '<p class="description">Enter custom values for the categories separated by commas. <b>Example:</b> Tech, Apparel, Literature <br><small><em><strong>Important:</strong> <span style="color: #c51244;">Ensure these values are in the same order as the selected categories. </span></em></small></p>';
                 break;
             case 'smarty_custom_label_4_sale_price_value':
                 echo '<p class="description">Enter the value to label products with a sale price.</p>';
@@ -1384,7 +1384,7 @@ if (!function_exists('smarty_custom_label_category_callback')) {
 
         // Add description for the category selection
         if ($args['label'] === 'smarty_custom_label_3_category') {
-            echo '<p class="description">Ensure the values for each category are entered in the same order in the Category Value field.</p>';
+            echo '<p class="description">Select one or multiple categories from the list. <br><small><em><b>Important:</b> <span style="color: #c51244;">Ensure the values for each category are entered in the same order in the Category Value field.</span></em></small></p>';
         }
     }
 }
@@ -1423,7 +1423,7 @@ if (!function_exists('smarty_clear_cache_callback')) {
     function smarty_clear_cache_callback() {
         $option = get_option('smarty_clear_cache');
         echo '<input type="checkbox" name="smarty_clear_cache" value="1" ' . checked(1, $option, false) . ' />';
-        echo '<p class="description">' . __('Check to clear the cache each time the feed is generated. <br><em><b>Important:</b> <span style="color: #c51244;">Remove this in production to utilize caching.</span></em>', 'smarty-google-feed-generator') . '</p>';
+        echo '<p class="description">' . __('Check to clear the cache each time the feed is generated. <br><small><em><b>Important:</b> <span style="color: #c51244;">Remove this in production to utilize caching.</span></em></small>', 'smarty-google-feed-generator') . '</p>';
     }
 }
 
@@ -1572,6 +1572,57 @@ if (!function_exists('smarty_get_cleaned_google_product_category')) {
     }
 }
 
+if (!function_exists('smarty_sanitize_category_values')) {
+    /**
+     * Function to sanitize the plugin settings on save.
+     */
+    function smarty_sanitize_category_values($input) {
+        // Check if the input is an array
+        if (is_array($input)) {
+            return array_map('trim', $input);
+        } else {
+            // If the input is a string, split it by commas, trim each value, and return as a comma-separated string
+            $values = explode(',', $input);
+            $values = array_map('trim', $values);
+            return implode(', ', $values);
+        }
+    }
+    // Add the sanitization callback when registering the setting
+    add_filter('pre_update_option_smarty_custom_label_3_category_value', 'smarty_sanitize_category_values');    
+}
+
+if (!function_exists('smarty_sanitize_category_values')) {
+    /**
+     * Display the settings field with the values properly trimmed.
+     */
+    function smarty_display_category_values_field() {
+        $category_values = get_option('smarty_custom_label_3_category_value', '');
+        if (!is_array($category_values)) {
+            $category_values = explode(',', $category_values);
+        }
+        $category_values = array_map('trim', $category_values);
+        $category_values = implode(', ', $category_values);
+
+        echo '<input type="text" id="smarty_custom_label_3_category_value" name="smarty_custom_label_3_category_value" value="' . esc_attr($category_values) . '" class="regular-text" />';
+        echo '<p class="description">Enter custom values for the categories separated by commas. <strong>Example:</strong> Tech, Apparel, Literature</p>';
+        echo '<p class="description"><strong>Important:</strong> Ensure these values are in the same order as the selected categories.</p>';
+    }
+    // Add the display callback when registering the setting field
+    add_action('admin_init', function() {
+        register_setting('smarty_settings', 'smarty_custom_label_3_category_value', [
+            'sanitize_callback' => 'smarty_sanitize_category_values'
+        ]);
+
+        add_settings_field(
+            'smarty_custom_label_3_category_value',
+            __('Category Value', 'smarty'),
+            'smarty_display_category_values_field',
+            'smarty-settings-page',
+            'smarty_settings_section'
+        );
+    });
+}
+
 if (!function_exists('smarty_get_custom_label_0')) {
     /**
      * Custom Label 0: Older Than X Days & Not Older Than Y Days
@@ -1653,12 +1704,17 @@ if (!function_exists('smarty_get_custom_label_3')) {
         $selected_categories = get_option('smarty_custom_label_3_category', []);
         $selected_category_values = get_option('smarty_custom_label_3_category_value', 'category_selected');
         
-        // Ensure selected categories and values are arrays
+        // Ensure selected categories and values are arrays and strip any whitespace
         if (!is_array($selected_categories)) {
-            $selected_categories = explode(',', $selected_categories);
+            $selected_categories = array_map('trim', explode(',', $selected_categories));
+        } else {
+            $selected_categories = array_map('trim', $selected_categories);
         }
+
         if (!is_array($selected_category_values)) {
-            $selected_category_values = explode(',', $selected_category_values);
+            $selected_category_values = array_map('trim', explode(',', $selected_category_values));
+        } else {
+            $selected_category_values = array_map('trim', $selected_category_values);
         }
 
         // Retrieve the product's categories
