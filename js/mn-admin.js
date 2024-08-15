@@ -1,16 +1,16 @@
 jQuery(document).ready(function($) {
-    $('.smarty-convert-images-button').on('click', function (e) {
+    $('.mn-convert-images-button').on('click', function (e) {
         e.preventDefault(); // Prevent the default form submission
 
         var button = $(this);
         button.attr('disabled', true);
 
         $.ajax({
-            url: smartyFeedGenerator.ajaxUrl,
+            url: mnFeedGenerator.ajaxUrl,
             method: 'POST',
             data: {
-                action: 'smarty_convert_images',
-                nonce: smartyFeedGenerator.nonce
+                action: 'mn_convert_images',
+                nonce: mnFeedGenerator.nonce
             },
             success: function (response) {
                 if (response.success) {
@@ -28,7 +28,7 @@ jQuery(document).ready(function($) {
         });
     });
 
-    $('.smarty-generate-feed-button').on('click', function(e) {
+    $('.mn-generate-feed-button').on('click', function(e) {
         e.preventDefault(); // Prevent the default form submission
 
         var action = $(this).data('feed-action');
@@ -36,13 +36,13 @@ jQuery(document).ready(function($) {
 
         switch (action) {
             case 'generate_product_feed':
-                redirectUrl = smartyFeedGenerator.siteUrl + '/smarty-google-feed/';
+                redirectUrl = mnFeedGenerator.siteUrl + '/mn-google-feed/';
                 break;
             case 'generate_reviews_feed':
-                redirectUrl = smartyFeedGenerator.siteUrl + '/smarty-google-reviews-feed/';
+                redirectUrl = mnFeedGenerator.siteUrl + '/mn-google-reviews-feed/';
                 break;
             case 'generate_csv_export':
-                redirectUrl = smartyFeedGenerator.siteUrl + '/smarty-csv-export/';
+                redirectUrl = mnFeedGenerator.siteUrl + '/mn-csv-export/';
                 break;
             default:
                 alert('Invalid action.');
@@ -52,21 +52,21 @@ jQuery(document).ready(function($) {
         window.open(redirectUrl, '_blank');
     });
 
-    $('.smarty-excluded-categories').select2({
+    $('.mn-excluded-categories').select2({
         width: '100%' // need to override the changed default
     });
 
     // Initialize Select2 with AJAX for the Google Product Category select element
-    $('.smarty-select2-ajax').select2({
+    $('.mn-select2-ajax').select2({
         ajax: {
-            url: smartyFeedGenerator.ajaxUrl,
+            url: mnFeedGenerator.ajaxUrl,
             dataType: 'json',
             delay: 250,
             data: function (params) {
                 return {
                     q: params.term, // search term
-                    action: 'smarty_load_google_categories',
-                    nonce: smartyFeedGenerator.nonce
+                    action: 'mn_load_google_categories',
+                    nonce: mnFeedGenerator.nonce
                 };
             },
             processResults: function (data) {

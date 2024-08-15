@@ -1,5 +1,5 @@
 /* Change width of the Exclude Patterns textarea */
-textarea[name="smarty_exclude_patterns"].large-text {
+textarea[name="mn_exclude_patterns"].large-text {
     width: 50% !important;
 }
 

@@ -1,15 +1,16 @@
-<p align="center"><a href="https://smartystudio.net" target="_blank"><img src="https://smartystudio.net/wp-content/uploads/2023/06/smarty-green-logo-small.png" width="100" alt="SmartyStudio Logo"></a></p>
+<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/github/explore/80688e429a7d4ef2fca1e82350fe8e3517d3494d/topics/wordpress/wordpress.png" width="100" alt="WordPress Logo"></a></p>
 
-# Smarty Studio - Google Feed Generator for WooCommerce
+
+# WordPress - Google Feed Generator for WooCommerce
 
 [![Licence](https://img.shields.io/badge/LICENSE-GPL2.0+-blue)](./LICENSE)
 
-- Developed by: [Smarty Studio](https://smartystudio.net) | [Martin Nestorov](https://github.com/mnestorov)
-- Plugin URI: https://smartystudio.net/smarty-google-feed-generator
+- Developed by: [Martin Nestorov](https://github.com/mnestorov)
+- Plugin URI: https://github.dev/mnestorov/wp-google-feed-generator
 
 ## Overview
 
-**SM - Google Feed Generator for WooCommerce** is a comprehensive WordPress plugin designed to dynamically generate and manage Google product and product review feeds for WooCommerce stores. This plugin automates the creation of feeds compliant with Google Merchant Center requirements, facilitating better product visibility and integration with Google Shopping.
+**WordPress - Google Feed Generator for WooCommerce** is a comprehensive WordPress plugin designed to dynamically generate and manage Google product and product review feeds for WooCommerce stores. This plugin automates the creation of feeds compliant with Google Merchant Center requirements, facilitating better product visibility and integration with Google Shopping.
 
 ## Features
 
@@ -27,16 +28,16 @@
 
 ## Installation
 
-1. Upload the plugin files to the `/wp-content/plugins/smarty-google-feed-generator` directory, or install the plugin through the WordPress plugins screen directly.
+1. Upload the plugin files to the `/wp-content/plugins/wp-google-feed-generator` directory, or install the plugin through the WordPress plugins screen directly.
 2. Activate the plugin through the 'Plugins' menu in WordPress.
 
 ## Usage
 
 After activating the plugin, it automatically generates product and review feeds accessible through custom endpoints:
 
-- **Product Feed URL:** https://yourdomain.com/smarty-google-feed
-- **Review Feed URL:** https://yourdomain.com/smarty-google-reviews-feed
-- **CSV Feed Export:** https://yourdomain.com/smarty-csv-export
+- **Product Feed URL:** https://yourdomain.com/mn-google-feed
+- **Review Feed URL:** https://yourdomain.com/mn-google-reviews-feed
+- **CSV Feed Export:** https://yourdomain.com/mn-csv-export
 
 These URLs can be submitted to [Google Merchant Center](https://www.google.com/retail/solutions/merchant-center/) for product data and review integration.
 
