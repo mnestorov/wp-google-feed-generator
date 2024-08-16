@@ -9,6 +9,9 @@
  * License:     GPL-2.0+
  * License URI: http://www.gnu.org/licenses/gpl-2.0.txt
  * Text Domain: mn-google-feed-generator
+ * WC requires at least: 3.5.0
+ * WC tested up to: 9.0.2
+ * Requires Plugins: woocommerce
  */
 
 // If this file is called directly, abort.
