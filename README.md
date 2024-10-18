@@ -6,7 +6,7 @@
 [![Licence](https://img.shields.io/badge/LICENSE-GPL2.0+-blue)](./LICENSE)
 
 - Developed by: [Martin Nestorov](https://github.com/mnestorov)
-- Plugin URI: https://github.dev/mnestorov/wp-google-feed-generator
+- Plugin URI: https://github.com/mnestorov/wp-google-feed-generator
 
 ## Overview
 
