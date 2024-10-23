@@ -1,7 +1,7 @@
 <?php
 /**
  * Plugin Name: WordPress - Google Feed Generator for WooCommerce
- * Plugin URI:  https://github.net/mnestorov/mn-google-feed-generator
+ * Plugin URI:  https://github.net/mnestorov/wp-google-feed-generator
  * Description: Generates google product and product review feeds for Google Merchant Center.
  * Version:     1.0.0
  * Author:      Martin Nestorov
