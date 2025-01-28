@@ -4,13 +4,9 @@
 
 [![Licence](https://img.shields.io/badge/LICENSE-GPL2.0+-blue)](./LICENSE)
 
-- Developed by: [Martin Nestorov](https://github.com/mnestorov)
-- Plugin URI: https://github.com/mnestorov/wp-google-feed-generator
-
-## Support The Project
-
-Your support is greatly appreciated and will help ensure all of the projects continued development and improvement. Thank you for being a part of the community!
-You can send me money on Revolut by following this link: https://revolut.me/mnestorovv
+- **Developed by:** Martin Nestorov 
+    - Explore more at [nestorov.dev](https://github.com/mnestorov)
+- **Plugin URI:** https://github.com/mnestorov/wp-google-feed-generator
 
 ## Overview
 
